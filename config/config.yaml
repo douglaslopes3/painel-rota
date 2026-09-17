@@ -57,7 +57,7 @@ fontes:
     # NÃO vão para o staging (minimização, Etapa 7): ENDEREÇO CLIENTE, DESCRIÇÃO TIMELINE, LATITUDE e LONGITUDE (truncadas em inteiro na origem)
     eventos_esperados: [CHECKIN, CHECKOUT]
     logins_ignorados:               # descartados na leitura, contados no log. A confirmar pelo Gui na aba Logins_sem_executivo do de-para (P-01)
-      TESTERTM: "usuário de teste (1 evento em 03/09/2026)"
+      TESTERTM: "usuário de teste (1 check-in em 01/09/2026, no cliente 1012816)"
 
   pedidos:                          # Mercanet · consulta de pedidos · 1 linha = 1 pedido · canal Atacado inteiro · acumulada do mês
     pasta: bases/Pedidos
@@ -107,6 +107,29 @@ fontes:
       PROJETO: ["PROJETO"]
       LOGIN_MERCANET: ["LOGIN MERCANET", "LOGIN MERCATNET"]   # a 2ª grafia é a do arquivo de 17/09/2026
       NOME_MERCANET: ["NOME MERCANET"]
+
+calendario:
+  # Dia útil = segunda a sexta fora desta lista. Serve ao rótulo dos dias e à contagem "dia X de N"; o planejado vem SEMPRE das
+  # datas da rota, não daqui. Parâmetro declarado (o protótipo 2 também trata 07/09/2026 como não útil) — manter atualizado.
+  feriados: ["2026-09-07"]
+  semana_inicio: segunda            # D-02: semana = da segunda-feira até o dia selecionado
+
+regras:                             # D-02: regras do protótipo 2 (conferidas em 100% dos casos contra os dados embutidos nele)
+  visita:
+    # 1 visita = 1 cliente × dia com QUALQUER evento. O protótipo conta também o dia que só tem CHECKOUT (15 casos em set/26);
+    # para exigir check-in, deixar só [CHECKIN]. (P-12)
+    eventos_que_contam: [CHECKIN, CHECKOUT]
+    # minutos em loja = o MAIOR par check-in -> check-out do cliente no dia; cada check-out pareia com o último check-in antes dele.
+    minutos_minimos: null           # P-04: duração mínima para a visita valer (null = toda visita vale)
+  canais_sem_controle_de_visita: [TELEFONE]    # acompanhados só por pedido (D-02)
+  pedido:
+    situacoes_excluidas: ["Cancelado"]         # P-09: Bloqueado conta (como no protótipo 2)
+    coluna_valor: VALOR_PEDIDO                 # é a coluna que o protótipo 2 usa (o rodapé dele diz "bruto − desconto", mas o dado é este)
+    janela_dias_corridos: 1                    # o pedido conta para a loja se emitido no dia da rota ou até N dias CORRIDOS depois (P-13)
+
+qualidade:                          # só para os relatórios de exceção; não muda nenhum número
+  visita_curta_min: 1
+  visita_longa_min: 120
 
 validacao:
   tolerancia_reconciliacao: 0.05    # diferença absoluta aceita entre a soma das linhas e o rodapé da fonte

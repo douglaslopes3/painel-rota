@@ -4,16 +4,19 @@ Painel diário de execução de rota — visitas planejadas × check-ins × pedi
 Atacado. Mesmo padrão do Scorecard DN e do Dashboard Gerencial: **bases → ETL Python → Parquet → HTML offline**, um
 arquivo por usuário, publicado nas pastas de `Painéis Comerciais`.
 
-Estado em **17/09/2026**: **Fase 1 (fundação) concluída** — as bases são lidas, validadas e reconciliadas com a fonte.
-Modelo, indicadores, painel e publicação entram nas fases 2 a 4 (`docs/Fase0_Diagnostico_Roadmap.html`, Etapa 8).
+Estado em **17/09/2026**: **Fases 1 e 2 concluídas** — as bases são lidas e reconciliadas com a fonte, viram o modelo
+(fatos, dimensões, LOJA_MES, DIARIO_VENDEDOR) e os indicadores fecham com o protótipo 2. Painel (Fase 3) e publicação dos
+9 painéis (Fase 4) são os próximos passos (`docs/Fase0_Diagnostico_Roadmap.html`, Etapa 8).
 
 ## Como rodar
 
 ```powershell
 cd "C:\Users\dldsouza\OneDrive - Dori Alimentos S.A\Documentos\Painéis - Alavancas\ROTA"
-python run_rota.py            # verificar -> ingerir (bases -> staging) -> resumo e manifesto   (~1 s)
+python run_rota.py            # verificar -> ingerir -> modelar -> calcular -> gravar curated + qualidade   (~1,5 s)
 python run_rota.py --forcar   # relê todas as bases ignorando o cache
 python tests/test_leitores.py # 21 testes dos leitores (não precisa de pytest)
+python tests/test_regras.py   # 12 testes das regras de visita, pedido e indicadores
+python ferramentas/reconciliar_prototipo2.py   # aceite da Fase 2 (só vale com as bases de 16/09)
 ```
 
 Qualquer falha termina com `PIPELINE ABORTADO`, exit code 1, dizendo o arquivo, a linha e o motivo.
@@ -41,8 +44,9 @@ Regras de operação:
 ```
 bases/                 origem (somente leitura)
 config/config.yaml     caminhos, colunas de cada base, logins ignorados, tolerâncias — nenhuma regra mora no código
-rota/                  extract/ (cache, comum, rota_mensal, checkins, pedidos, estrutura) · utils/ · manifesto · pipeline
-data/rota/             staging/ (Parquet por arquivo) · curated/manifesto.json · quality/ · logs/   (não versionado)
+rota/                  extract/ (leitores) · transform/ (calendario, visitas, modelo) · load/parquet · metricas · qualidade · manifesto · pipeline
+ferramentas/           fora do pipeline: reconciliação com o protótipo 2
+data/rota/             staging/ (Parquet por arquivo) · curated/ (modelo + manifesto) · quality/ (relatório + CSVs) · logs/   (não versionado)
 docs/                  Fase 0, inventário, dicionário, decisões, modelo do de-para
 tests/                 testes dos leitores com arquivos sintéticos
 template/              (Fase 3)
@@ -57,6 +61,8 @@ run_rota.py · requirements.txt
 | `docs/Fase0_Diagnostico_Roadmap.html` | diagnóstico completo, arquitetura, riscos e roadmap (abrir por duplo clique) |
 | `docs/01_INVENTARIO_FONTES.md` | o que cada base tem, medido |
 | `docs/05_DICIONARIO_DADOS.md` | colunas do staging, tipos e o que fica de fora |
+| `docs/06_MODELO.md` | fatos, dimensões, grão, quem é o dono da visita e do pedido, validações |
+| `docs/07_CATALOGO_METRICAS.md` | definição de cada indicador, reconciliação com o protótipo 2, números de setembro |
 | `docs/10_DECISOES.md` | decisões D-nn e pendências P-nn, com data |
 
 ## Regras que o projeto segue

@@ -27,13 +27,16 @@ Decisões do Douglas (17/09/2026, Fase 0), salvo indicação. O porquê e as alt
 | D-18 | 17/09 | Posições confirmadas pelo Douglas: **118 = HYGOR DOREA** (evidência: os 8 pedidos de set/26 com representante 118 são de clientes dele) e **119 = LUIS SOUSA** (por eliminação: única posição vaga do supervisor Hudson; sem pedido com o código 119 no mês). 121 · Litoral segue `[VAGO]` (os 33 clientes `[VAGO]` da rota são do litoral e os 3 pedidos com representante 121 são deles). Gravado no de-para; cabeçalho corrigido para `LOGIN MERCANET`. Versão anterior em `bases/Estrutura/_versoes/`. |
 | D-19 | 17/09 | Coluna **`Cód. vendedor`** inserida na rota de setembro (`bases/Rota/Rota_14092026.xlsx`, depois de `Executivo`), preenchida pela hierarquia. Original intacto em `bases/Rota/_versoes/Rota_14092026_original.xlsx`. Conferido: 2.973 linhas, 22 códigos, 1 código = 1 executivo e 1 supervisor, demais colunas iguais (diferença máxima de 6e-11 em decimais, por regravação do xlsx). Este passa a ser o MODELO da rota mensal (13 colunas). |
 | D-20 | 17/09 | Pasta de origem renomeada pelo Douglas para `bases/` (minúscula, como no DN e no Gerencial); config e docs atualizados. |
+| D-21 | 17/09 | **9 painéis**: 1 head, 3 gerentes e 5 supervisores — todo nível da hierarquia recebe o seu, como no Gerencial (fecha a P-11). |
+| D-22 | 17/09 | Fase 2: regras do protótipo 2 conferidas contra os dados embutidos nele e adotadas no config (`regras`): visita = cliente × dia com qualquer evento (inclui o dia que só tem check-out); minutos = maior par, check-out pareado com o último check-in anterior; pedido válido = situação ≠ Cancelado, valor = `Valor total do pedido`, janela = dia da rota + 1 dia corrido. Diferença deliberada: o modelo soma TODOS os pedidos da janela (o protótipo soma só o primeiro). |
+| D-23 | 17/09 | Visita e pedido são atribuídos ao vendedor DONO da loja na rota do mês; o login serve à jornada do dia e à conferência. Reconciliação com o protótipo 2 (mês até 16/09): contagens idênticas nos 22 vendedores, salvo 1 visita do usuário de teste (`docs/07`). |
+| D-24 | 17/09 | `calendario.feriados` no config (hoje: 07/09/2026) — só rotula dia útil; o planejado vem sempre das datas da rota. |
 
 ## Pendências
 
 | # | Pendência | Com quem | Bloqueia |
 |---|---|---|---|
 | P-01 | ~~Hierarquia fechada com a rota~~ **feito em 17/09 (D-16 a D-19)**: chave por código, 22 posições = 22 vendedores da rota. Falta só: LOGIN MERCANET de 7 posições (Richard Silva, Hygor Dorea, Mauricio Rodrigues, Luis Sousa, Icaro Sanches, Marcus Flavio e o `[VAGO]` 121) — ligado à P-03 — e confirmar com o Gui a posição 119 = Luis Sousa e o `TESTERTM` ignorado | Douglas / Gui | atribuição de check-ins dessas 7 posições |
-| P-11 | Quantos painéis: 9 (5 supervisores + 3 gerentes + 1 head; Erbino Botelho e Marcelo Hunter veriam o mesmo que Adriana e Anderson) ou 7 | Douglas | Fase 4 |
 | P-02 | Unidade e nome do indicador de volume (`Quantidade solicitada`) | Gui | card de volume |
 | P-03 | Por que 6 executivos não têm check-in (Hygor Dorea, Icaro Sanches, Luis Sousa, Marcus Flavio, Mauricio Rodrigues, Richard Silva) | Gui | leitura da aderência |
 | P-04 | Corte de duração para visita válida e tempo em loja | Gui | Fase 2 |
@@ -43,3 +46,5 @@ Decisões do Douglas (17/09/2026, Fase 0), salvo indicação. O porquê e as alt
 | P-08 | Visitas em fim de semana e check-in em cliente fora da rota contam? | Gui | Fase 2 |
 | P-09 | Pedido Bloqueado conta como pedido tirado? (o protótipo 2 conta) | Gui | Fase 2 |
 | P-10 | Registro do contato telefônico (284 clientes) | Gui / Mercanet | fase 2 do produto |
+| P-12 | Dia que só tem CHECK-OUT (sem check-in) conta como visita? O protótipo 2 conta (14 casos em set/26); o config segue o protótipo | Gui | — (parâmetro `regras.visita.eventos_que_contam`) |
+| P-13 | **Regra do "com pedido"**: hoje o pedido só conta para a loja se emitido no dia da rota ou 1 dia corrido depois (rota na sexta → pedido na segunda NÃO conta). Em set/26 isso deixa 502 de 548 pedidos fora: 42 lojas com pedido na janela × 238 com pedido no mês. Manter a janela, usar dia ÚTIL seguinte, ou medir pedido no mês (como a aderência)? | Gui / Douglas | leitura da positivação; Fase 3 (qual número vai no card) |

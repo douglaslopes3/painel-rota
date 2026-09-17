@@ -1,0 +1,62 @@
+# 07 · Catálogo de métricas
+
+Uma conta só: `rota.metricas.kpis(LOJA_MES, FATO_VISITA, dias, por)`. **Dia, semana e mês são apenas o conjunto de DIAS DE
+ROTA que entra**: dia = [d]; semana = da segunda-feira até d; mês = do dia 1 até d. Toda métrica de roteiro olha a loja no
+**dia da rota dela**. Parâmetros em `config.yaml → regras`. Testes: `tests/test_regras.py`.
+
+| Métrica | Definição | Origem |
+|---|---|---|
+| **Roteiro** (lojas na rota) | lojas com controle de visita (canal ≠ TELEFONE) cuja DATA_ROTA está no período | rota |
+| **Visitadas no dia da rota** | lojas do roteiro com visita na própria DATA_ROTA | check-ins |
+| **Não atendidas** | Roteiro − Visitadas no dia da rota | — |
+| **Fora do roteiro** | lojas (com controle de visita) visitadas, dentro do período, num dia que não é o da rota delas — cada loja conta 1 vez | check-ins |
+| **Total de lojas visitadas** | Visitadas no dia da rota + Fora do roteiro | — |
+| **% visita no dia** | Visitadas no dia da rota ÷ Roteiro | — |
+| **Aderência no mês (D-03)** | das lojas com roteiro **já vencido** até a data, as que tiveram ≥ 1 visita no mês, em qualquer dia ÷ roteiro vencido | rota + check-ins |
+| **Com pedido** | lojas do roteiro com pedido válido emitido na DATA_ROTA ou até 1 dia corrido depois | pedidos |
+| **Visita + pedido** · **Sem contato** | lojas com as duas coisas · com nenhuma, no dia da rota | — |
+| **% positivação do roteiro** · **% visita com pedido** | Com pedido ÷ Roteiro · Visita + pedido ÷ Visitadas no dia | — |
+| **Valor dos pedidos** | Σ `Valor total do pedido` dos pedidos válidos na janela (todos os pedidos da loja na janela) | pedidos |
+| **Quantidade solicitada** ("volume", D-04) | Σ `Quantidade solicitada` dos mesmos pedidos — **unidade não declarada (P-02)** | pedidos |
+| **Telefone: roteiro / com pedido / valor** | as mesmas contas para as lojas TELEFONE, que não têm controle de visita | rota + pedidos |
+| **1ª entrada · Última saída** | menor check-in e maior check-out do dia, pelo LOGIN do vendedor | check-ins |
+| **Tempo médio em loja** | média dos MINUTOS_EM_LOJA das visitas do dia que têm par | check-ins |
+| **Status da loja** | 3 visita + pedido · 2 só visita · 1 só pedido · 0 sem contato (no dia da rota) | — |
+
+Também ficam na LOJA_MES, por loja: `DIAS_VISITADOS`, `PRIMEIRA/ULTIMA_VISITA`, `DIAS_FORA_DO_ROTEIRO`, `PEDIDOS_MES`,
+`VALOR_MES`, `QTD_MES` (pedidos válidos do mês, dentro ou fora da janela).
+
+Fora do escopo desta fase (D-09 / GAPs): receita líquida, volume em kg, meta e % da meta, tempo de deslocamento, contato
+telefônico, radar "Minha equipe", "Lojas em aberto".
+
+## Reconciliação com o protótipo 2 (aceite da Fase 2)
+
+`python ferramentas/reconciliar_prototipo2.py` refaz a conta do JavaScript do protótipo sobre os dados embutidos nele e
+compara com `kpis`, vendedor a vendedor, no mês até 16/09/2026:
+
+| Indicador | Protótipo | Modelo | |
+|---|---:|---:|---|
+| Roteiro | 1.368 | 1.368 | igual nos 22 vendedores |
+| Visitadas no dia da rota | 292 | 292 | igual |
+| Com pedido · Visita + pedido · Sem contato | 42 · 16 · 1.050 | 42 · 16 · 1.050 | igual |
+| Telefone: roteiro · com pedido | 142 · 2 | 142 · 2 | igual |
+| Fora do roteiro | 483 | 482 | −1 em HYGOR DOREA: o protótipo contou o check-in do usuário `TESTERTM` (01/09, cliente 1012816), que o pipeline ignora |
+| Valor dos pedidos | R$ 263.643,87 | R$ 287.214,71 | o protótipo soma só o **1º** pedido da janela de cada loja; o modelo soma todos |
+
+Minutos em loja e número de registros por visita: iguais ao protótipo em 100% dos 947 cliente-dias comparáveis.
+
+## O que os números de setembro já mostram (até 16/09)
+
+| | Roteiro vencido | Visitadas no dia da rota | Fora do roteiro | **Aderência no mês** | Com pedido (janela) |
+|---|---:|---:|---:|---:|---:|
+| Marco Masson | 444 | 111 (25,0%) | 214 | 197 (**44,4%**) | 16 |
+| Robson Dias | 214 | 25 (11,7%) | 71 | 58 (**27,1%**) | 6 |
+| Hudson Lage | 351 | 75 (21,4%) | 76 | 121 (**34,5%**) | 16 |
+| Adriana Miranda | 316 | 81 (25,6%) | 121 | 125 (**39,6%**) | 4 |
+| Anderson Okada | 43 (+142 por telefone) | 0 | 0 | 0 (0,0%) — sem check-in | 0 (telefone: 2) |
+| **Total** | **1.368** | **292 (21,3%)** | **482** | **501 (36,6%)** | **42** |
+
+Ponto de atenção para o negócio (P-13): dos 548 pedidos válidos de clientes da rota, só **46** caem na janela "dia da rota
++ 1 dia" — **502 ficam fora**. Das 1.368 lojas com roteiro vencido, 42 têm pedido na janela, mas **238 têm pedido no
+mês**. Com a visita acontecendo fora do dia planejado em 2 de cada 3 casos, "com pedido no dia da rota" mede pouco; a
+alternativa (pedido no mês, como a aderência) já está calculada na LOJA_MES.
