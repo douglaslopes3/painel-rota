@@ -6,8 +6,8 @@ reconciliação com a fonte) -> 2 modelar (staging -> fatos e dimensões) ->
 3 calcular (indicadores + conferências de soma) -> gravar a camada curada, o
 relatório de qualidade, o resumo e o manifesto. NADA é gravado na camada curada
 antes de todas as validações passarem.
-4 renderizar + 5 validar o painel (Fase 3: a visão do head, em pasta local, sem publicar). A geração das 9 visões e a
-etapa 6 publicar entram na Fase 4.
+4 renderizar + 5 validar os painéis — um por visão da hierarquia, em pasta LOCAL. A etapa 6 publicar só entra ao final do
+projeto, com tudo validado pelo time (D-28).
 
 Qualquer falha termina em `PIPELINE ABORTADO`, exit code 1.
 """
@@ -148,27 +148,48 @@ def _calcular(m: dict) -> dict:
 
 
 def _painel(m: dict, calc: dict, hier) -> dict:
-    L.etapa_inicio("4-5 · RENDERIZAR E VALIDAR O PAINEL")
+    """Um HTML por visão da hierarquia, em pasta LOCAL (D-28: nada é publicado até a validação final). A falha de uma visão
+    não derruba as outras: o arquivo dela não sai, o erro fica no log e a execução termina com exit code 1."""
+    L.etapa_inicio("4-5 · RENDERIZAR E VALIDAR OS PAINEIS")
     if hier is None:
-        L.log("sem hierarquia nao ha visoes: painel nao gerado", "aviso")
+        L.log("sem hierarquia nao ha visoes: paineis nao gerados", "aviso")
         L.etapa_fim("pulada")
-        return {}
+        return {"paineis": {}, "falhas": []}
     # carimbo do painel = arquivo de base mais recente (nao o relogio): mesma base -> mesmo HTML, byte a byte
     mais_novo = max(a.stat().st_mtime for f in ("checkins", "pedidos") for a in comum.arquivos(f))
     atualizado_em = datetime.fromtimestamp(mais_novo).strftime("%d/%m/%Y %H:%M")
-    visoes = estrutura.visoes(hier)
-    alvo_nivel = CFG["painel"].get("niveis_gerados") or ["N1", "N2", "N3"]
-    gerados = {}
-    for v in visoes[visoes["NIVEL"].isin(alvo_nivel)].to_dict("records"):
-        J = painel.montar(m, calc["LOJA_MES"], v, calc["_ate"], atualizado_em)
-        painel.validar(J, calc["LOJA_MES"], v)
+    niveis = CFG["painel"].get("niveis_gerados") or ["N1", "N2", "N3"]
+    todas = estrutura.visoes(hier).to_dict("records")
+    visoes = [v for v in todas if v["NIVEL"] in niveis]
+    P = painel.preparar(m, calc["LOJA_MES"], calc["_ate"])
+    dv = m["DIM_VENDEDOR"]
+    gerados, totais, falhas, nomes = {}, {}, [], set()
+    for v in visoes:
         nome = f"Painel_Rota_{v['NIVEL']}_{render.slug(v['ROTULO'])}.html"
-        arq = render.gerar(J, nome)
-        gerados[v["ROTULO"]] = {"arquivo": str(arq), "kb": round(arq.stat().st_size / 1024, 1), "lojas": len(J["lojas"]), "vendedores": len(J["vend"])}
+        try:
+            J = painel.montar(P, dv, v, atualizado_em)
+            painel.validar(J, P, dv, v)
+            arq = render.gerar(J, nome)
+        except painel.PainelInvalido as e:
+            falhas.append(str(e))
+            L.log(f"painel NAO gerado — {e}", "erro")
+            continue
+        nomes.add(nome)
+        totais[v["ROTULO"]] = painel.totais(J)
+        gerados[v["ROTULO"]] = {"arquivo": str(arq), "kb": round(arq.stat().st_size / 1024, 1), **totais[v["ROTULO"]]}
         L.log(f"{v['NIVEL']} {v['ROTULO']:<46} {len(J['vend']):>2} vendedores {len(J['lojas']):>5,} lojas -> {arq.name} ({arq.stat().st_size / 1024:,.0f} KB)", "ok")
-    L.log(f"paineis em {render.PASTA_PAINEL} (pasta local, fora do OneDrive; nada foi publicado)")
-    L.etapa_fim("ok", paineis=len(gerados))
-    return gerados
+    for e in painel.conferir_niveis(totais, visoes):
+        falhas.append(e)
+        L.log("soma entre niveis — " + e, "erro")
+    if not falhas and len(niveis) > 1:
+        L.log(f"{len(gerados)} paineis: zero vazamento, cards = lista de lojas em todos os dias, supervisores somam o gerente e gerentes somam o head", "ok")
+    for velho in render.PASTA_PAINEL.glob("Painel_Rota_*.html"):          # painel de visao que deixou de existir (ou falhou) nao fica para tras
+        if velho.name not in nomes:
+            velho.unlink()
+            L.log(f"removido painel sem visao correspondente nesta execucao: {velho.name}", "aviso")
+    L.log(f"paineis em {render.PASTA_PAINEL} (pasta local, fora do OneDrive). NADA foi publicado (D-28).")
+    L.etapa_fim("ok" if not falhas else "com falhas", paineis=len(gerados), falhas=len(falhas))
+    return {"paineis": gerados, "falhas": falhas}
 
 
 def executar(forcar: bool = False) -> int:
@@ -191,19 +212,23 @@ def executar(forcar: bool = False) -> int:
         parquet.salvar(vis.assign(N3_CODS=vis["N3_CODS"].map(";".join), EXECUCAO_ID=L.EXECUCAO_ID), "DIM_VISAO")
     info["qualidade"] = qualidade.gerar(m, calc["LOJA_MES"], L.contagens(), info["problemas_depara"])
     info["dados_ate"] = str(calc["_ate"].date())
-    info["paineis"] = gerados
+    info["paineis"], info["falhas_paineis"] = gerados["paineis"], gerados["falhas"]
     info["total_mes"] = {k: (round(float(v), 2) if v == v else None) for k, v in calc["_total"].items() if k != "GRUPO"}
     info["aderencia_mes"] = {k: (round(float(v), 2) if v == v else None) for k, v in calc["_aderencia"].items() if k != "GRUPO"}
     L.etapa_fim("ok")
     manifesto.gravar(L.EXECUCAO_ID, {"dados_ate": info["dados_ate"]})
 
     resumo = {"execucao": L.EXECUCAO_ID, "inicio": L.INICIO.isoformat(timespec="seconds"),
-              "fim": datetime.now().isoformat(timespec="seconds"), "situacao": "ok",
+              "fim": datetime.now().isoformat(timespec="seconds"), "situacao": "ok" if not info["falhas_paineis"] else "paineis com falha",
               "manifesto": dif, "etapas": L.etapas(), "arquivos": L.contagens(), **info,
               "avisos": L.avisos(), "erros": L.erros()}
     alvo = PASTA_LOGS / f"resumo_{L.EXECUCAO_ID}.json"
     alvo.write_text(json.dumps(resumo, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     L.log("")
+    if info["falhas_paineis"]:
+        L.log(f"CONCLUIDO COM {len(info['falhas_paineis'])} FALHA(S) NOS PAINEIS (acima). Log: {arq_log.name} | resumo: {alvo.name}", "erro")
+        L.fechar()
+        return 1
     L.log(f"SUCESSO — {len(L.avisos())} aviso(s). Log: {arq_log.name} | resumo: {alvo.name}", "ok")
     L.fechar()
     return 0

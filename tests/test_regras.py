@@ -139,22 +139,44 @@ def test_jornada_usa_o_login_e_o_diario_fecha_com_os_kpis():
     assert di.ROTEIRO.sum() == 4 and di.TEL_ROTEIRO.sum() == 1 and di.VISITADAS_NO_DIA.sum() == 2
 
 
+M["DIM_VENDEDOR"]["N3_NOME"] = ["MARCO", "ANDERSON"]
+V_SUP = {"NIVEL": "N3", "COD": "2110", "ROTULO": "2110 - S - MARCO", "NOME": "MARCO", "N3_CODS": ["2110"]}
+V_TEL = {"NIVEL": "N3", "COD": "2310", "ROTULO": "2310 - S - ANDERSON", "NOME": "ANDERSON", "N3_CODS": ["2310"]}
+V_HEAD = {"NIVEL": "N1", "COD": "20", "ROTULO": "20 - ATACADO - HEAD", "NOME": "HEAD", "N3_CODS": ["2110", "2310"]}
+PP = painel.preparar(M, L, T("2026-10-07"))
+DV = M["DIM_VENDEDOR"]
+
+
 def test_painel_so_leva_a_visao_e_os_cards_fecham_com_a_lista():
     """Recorte físico (D-05): o painel do supervisor 2110 não contém a loja 5 (supervisor 2310) nem o vendedor 136."""
-    v = {"NIVEL": "N3", "COD": "2110", "ROTULO": "2110 - S - MARCO", "NOME": "MARCO", "N3_CODS": ["2110"]}
-    M["DIM_VENDEDOR"]["N3_NOME"] = ["MARCO", "ANDERSON"]; M["DIM_VENDEDOR"]["N4_NOME"] = ["FULANO", "HIBRIDO"]
-    J = painel.montar(M, L, v, T("2026-10-07"), "07/10/2026 08:00")
-    painel.validar(J, L, v)                                                   # aborta (SystemExit) se cards != lista ou se houver vazamento
+    J = painel.montar(PP, DV, V_SUP, "07/10/2026 08:00")
+    painel.validar(J, PP, DV, V_SUP)                                          # levanta PainelInvalido se cards != lista ou se houver vazamento
     assert {l[0] for l in J["lojas"]} == {"1", "2", "3", "4"} and [x["cod"] for x in J["vend"]] == ["101"] and len(J["sups"]) == 1
     assert [d["lab"] for d in J["dias"]] == ["05/10", "06/10", "09/10"] and [d["futuro"] for d in J["dias"]] == [False, False, True]
     C = {c: i for i, c in enumerate(J["cols"])}
     mes_0610 = J["agg"]["mes"][1][0]                                          # mês até 06/10, vendedor 101
     assert (mes_0610[C["ROTEIRO"]], mes_0610[C["VISITADAS_NO_DIA"]], mes_0610[C["COM_PEDIDO"]], mes_0610[C["QTD_SOLICITADA"]]) == (3, 2, 1, 15.0)
     assert "VALOR_PEDIDOS" not in J["cols"] and J["horarios"][0][0] == ["09:00", "15:05"]      # D-04: valor não vai para o painel
-    todos = {"NIVEL": "N1", "COD": "20", "ROTULO": "20 - ATACADO - HEAD", "NOME": "HEAD", "N3_CODS": ["2110", "2310"]}
-    J1 = painel.montar(M, L, todos, T("2026-10-07"), "x"); painel.validar(J1, L, todos)
-    i136 = [x["cod"] for x in J1["vend"]].index("136")                        # a ordem é por supervisor e nome: achar o híbrido pelo código
-    assert len(J1["lojas"]) == 5 and len(J1["sups"]) == 2 and J1["agg"]["dia"][0][i136][C["TEL_ROTEIRO"]] == 1
+
+
+def test_vazamento_e_detectado():
+    J = painel.montar(PP, DV, V_HEAD, "x")                                    # dados do head apresentados como se fossem do supervisor
+    try:
+        painel.validar(J, PP, DV, V_SUP)
+    except painel.PainelInvalido as e:
+        assert "VAZAMENTO" in str(e)
+    else:
+        raise AssertionError("o painel com lojas de outra supervisao passou na validacao")
+
+
+def test_paineis_dos_supervisores_somam_o_do_head():
+    Js = {v["ROTULO"]: painel.montar(PP, DV, v, "x") for v in (V_SUP, V_TEL, V_HEAD)}
+    tot = {r: painel.totais(j) for r, j in Js.items()}
+    assert painel.conferir_niveis(tot, [V_SUP, V_TEL, V_HEAD]) == []
+    assert tot[V_HEAD["ROTULO"]]["LOJAS"] == 5 and tot[V_TEL["ROTULO"]]["TEL_ROTEIRO"] == 1 and tot[V_SUP["ROTULO"]]["ROTEIRO"] == 3
+    tot[V_SUP["ROTULO"]]["ROTEIRO"] += 1                                      # um supervisor "inflado" tem de ser acusado
+    assert any("ROTEIRO" in e for e in painel.conferir_niveis(tot, [V_SUP, V_TEL, V_HEAD]))
+    assert painel.conferir_niveis({V_HEAD["ROTULO"]: tot[V_HEAD["ROTULO"]]}, [V_SUP, V_TEL, V_HEAD])       # supervisor ausente: nao confere em silencio
 
 
 def test_calendario_ciclo_vem_das_datas_da_rota():

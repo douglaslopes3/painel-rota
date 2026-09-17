@@ -4,8 +4,9 @@ Painel diário de execução de rota — visitas planejadas × check-ins × pedi
 Atacado. Mesmo padrão do Scorecard DN e do Dashboard Gerencial: **bases → ETL Python → Parquet → HTML offline**, um
 arquivo por usuário, publicado nas pastas de `Painéis Comerciais`.
 
-Estado em **17/09/2026**: **Fases 1, 2 e 3 concluídas** (a Fase 3 gera o painel do head em pasta local, para revisão; nada é publicado) — as bases são lidas e reconciliadas com a fonte, viram o modelo
-(fatos, dimensões, LOJA_MES, DIARIO_VENDEDOR) e os indicadores fecham com o protótipo 2. A geração e a publicação dos 9 painéis (Fase 4) são o próximo passo (`docs/Fase0_Diagnostico_Roadmap.html`, Etapa 8).
+Estado em **17/09/2026**: **Fases 1, 2, 3 e 4a concluídas** — o pipeline gera os **9 painéis** (1 head, 3 gerentes, 5 supervisores) em pasta
+local, validados; **nada é publicado** até tudo estar sem pendências e validado com o time (D-28) — as bases são lidas e reconciliadas com a fonte, viram o modelo
+(fatos, dimensões, LOJA_MES, DIARIO_VENDEDOR) e os indicadores fecham com o protótipo 2. A publicação (Fase 4b) é a última etapa (`docs/Fase0_Diagnostico_Roadmap.html`, Etapa 8).
 
 ## Como rodar
 
@@ -14,7 +15,7 @@ cd "C:\Users\dldsouza\OneDrive - Dori Alimentos S.A\Documentos\Painéis - Alavan
 python run_rota.py            # verificar -> ingerir -> modelar -> calcular -> painel (pasta local) -> gravar curated + qualidade   (~5 s)
 python run_rota.py --forcar   # relê todas as bases ignorando o cache
 python tests/test_leitores.py # 21 testes dos leitores (não precisa de pytest)
-python tests/test_regras.py   # 14 testes das regras de visita, pedido e indicadores
+python tests/test_regras.py   # 16 testes das regras de visita, pedido e indicadores
 python ferramentas/reconciliar_prototipo2.py   # aceite da Fase 2 (só vale com as bases de 16/09)
 ```
 
@@ -55,7 +56,8 @@ run_rota.py · requirements.txt
 
 ## O painel
 
-Gerado em `%LOCALAPPDATA%\Dori\ROTA\painel\Painel_Rota_<nível>_<rótulo>.html` (fora do OneDrive), ~100 KB, autocontido, abre por
+Um por visão da hierarquia (`painel.niveis_gerados`), em `%LOCALAPPDATA%\Dori\ROTA\painel\Painel_Rota_<nível>_<rótulo>.html` (fora do
+OneDrive), 37 a 99 KB, autocontido, só com os dados da própria visão (recorte físico, conferido a cada execução), abre por
 duplo clique no Chrome ou Edge. Cabeçalho (visão, dia do ciclo, dados até) · aviso de vendedores sem check-in · seletor do dia de
 rota e filtro por supervisor · cards **No dia · Semana · Mês** · tabela/gráfico por vendedor (por supervisor nas visões de gerente e
 head) · lista de lojas do roteiro do dia com status. Depois de editar o template, basta rodar o pipeline de novo.

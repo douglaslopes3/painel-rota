@@ -133,7 +133,7 @@ regras:                             # D-02: regras do protótipo 2 (conferidas e
 
 painel:
   arquivo: Painel_Rota.html         # nome estável do arquivo publicado (D-05)
-  niveis_gerados: [N1]              # Fase 3: só a visão do head, para revisão. Fase 4: [N1, N2, N3] = 9 painéis (D-21)
+  niveis_gerados: [N1, N2, N3]      # D-21: 1 head + 3 gerentes + 5 supervisores = 9 painéis. Gerados em pasta local; publicação só ao final (D-28)
   faixas:                           # cores dos percentuais: >= verde, >= ambar, abaixo vermelho (protótipo 2: 90/60)
     verde: 90
     ambar: 60
