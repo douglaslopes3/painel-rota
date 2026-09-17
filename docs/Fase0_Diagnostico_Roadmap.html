@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Painel de Rota · Fase 0 · Diagnóstico e Roadmap</title>
+<style>
+:root{--azul:#1E4FA1;--ink:#16243D;--ink2:#4A5670;--ink3:#7C889F;--line:#DDE3EE;--bg:#F4F6FA;--card:#fff;
+--ok:#1B7F4C;--okbg:#E3F5EA;--amb:#B5720C;--ambbg:#FFF1DA;--red:#C22B2B;--redbg:#FCE4E4;--azbg:#E8EEF9}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;font-family:'Segoe UI',Arial,sans-serif;font-size:14px;line-height:1.55;color:var(--ink);background:var(--bg)}
+header{background:var(--azul);color:#fff;padding:22px 28px}
+header h1{margin:0;font-size:22px;font-weight:800}header p{margin:4px 0 0;opacity:.85;font-size:13px}
+.lay{display:flex;align-items:flex-start}
+nav{position:sticky;top:0;flex:0 0 250px;height:100vh;overflow:auto;background:#fff;border-right:1px solid var(--line);padding:16px 12px}
+nav a{display:block;padding:7px 10px;border-radius:8px;color:var(--ink2);text-decoration:none;font-weight:600;font-size:13px}
+nav a:hover{background:var(--azbg);color:var(--azul)}nav .grp{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);font-weight:800;margin:14px 10px 4px}
+main{flex:1;min-width:0;padding:22px 28px 80px;max-width:1180px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:20px}
+h2{margin:0 0 4px;font-size:18px;color:var(--azul)}h3{margin:20px 0 8px;font-size:14.5px}
+.sub{color:var(--ink3);font-size:12.5px;margin-bottom:12px}
+.tw{overflow-x:auto;margin:8px 0 14px}table{border-collapse:collapse;width:100%;font-size:12.5px}
+th{background:#F0F3F9;color:var(--ink2);text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+td{padding:7px 9px;border-bottom:1px solid #EEF1F7;vertical-align:top}
+code{background:#EEF1F7;border-radius:4px;padding:1px 5px;font-size:12px;font-family:Consolas,monospace}
+pre{background:#16243D;color:#E6ECF7;border-radius:8px;padding:12px 14px;font-size:12px;overflow:auto;font-family:Consolas,monospace;line-height:1.45}
+.t{display:inline-block;border-radius:10px;padding:1px 8px;font-size:10px;font-weight:800;letter-spacing:.3px;white-space:nowrap}
+.f{background:var(--azbg);color:var(--azul)}.d{background:var(--ambbg);color:var(--amb)}.p{background:var(--okbg);color:var(--ok)}
+.at{background:var(--okbg);color:var(--ok)}.pa{background:var(--ambbg);color:var(--amb)}.gap{background:var(--redbg);color:var(--red)}
+.kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0}
+.k{border:1px solid var(--line);border-radius:10px;padding:12px 14px}.k b{display:block;font-size:22px;color:var(--azul)}.k span{font-size:11.5px;color:var(--ink3)}
+.box{border-left:4px solid var(--amb);background:#FFF9EF;padding:10px 14px;border-radius:6px;margin:10px 0}
+.box.b{border-color:var(--azul);background:var(--azbg)}.box.r{border-color:var(--red);background:var(--redbg)}
+ul{margin:6px 0 10px;padding-left:20px}li{margin:3px 0}
+@media(max-width:900px){nav{display:none}main{padding:14px}}
+@media print{nav{display:none}section{break-inside:avoid-page}body{background:#fff}}
+</style></head><body>
+<header><h1>Painel de Rota · Fase 0 — Diagnóstico e Roadmap</h1>
+<p>Projeto Rota (canal Atacado) · consolidado das Etapas 1 a 8 · 17/09/2026 · elaborado com Douglas Lopes · nada foi desenvolvido nesta fase</p></header>
+<div class="lay"><nav>
+<div class="grp">Resumo</div><a href="#s0">Sumário executivo</a><a href="#dec">Decisões tomadas</a>
+<div class="grp">Diagnóstico</div><a href="#e1">1 · Padrão de referência</a><a href="#e2">2 · Negócio</a><a href="#e3">3 · Protótipos</a><a href="#e4">4 · Bases</a><a href="#e5">5 · Aderência</a>
+<div class="grp">Plano</div><a href="#e6">6 · Arquitetura e modelo</a><a href="#e7">7 · Requisitos e riscos</a><a href="#e8">8 · Roadmap</a><a href="#pen">Pendências</a><a href="#prox">Próximos passos</a>
+</nav><main>
+
+<section id="s0"><h2>Sumário executivo</h2>
+<div class="sub">Legenda usada em todo o documento: <span class="t f">FATO</span> verificado nos arquivos · <span class="t d">DÚVIDA</span> precisa de validação · <span class="t p">PROPOSTA</span> recomendação</div>
+<div class="kp">
+<div class="k"><b>3</b><span>bases · 1,3 MB no total (Rota mensal, check-ins e pedidos do Mercanet)</span></div>
+<div class="k"><b>2.973</b><span>clientes na rota de set/26 · 22 executivos · 5 supervisões</span></div>
+<div class="k"><b>19,2%</b><span>das visitas planejadas até 16/09 tiveram check-in no dia exato da rota</span></div>
+<div class="k"><b>6 de 21</b><span>executivos nomeados sem nenhum check-in no app em setembro</span></div>
+<div class="k"><b>7</b><span>painéis a gerar (5 supervisores, 1 gerente, 1 head), 1 HTML por pessoa</span></div>
+<div class="k"><b>&lt; 1 MB</b><span>tamanho esperado de cada HTML (DN: ~15 MB; Gerencial: ~20 MB)</span></div>
+</div>
+<ul>
+<li><b>O que é:</b> painel diário de execução de rota (visitas planejadas × check-ins × pedidos) para supervisores, gerente e head do Atacado, no mesmo padrão técnico do Scorecard DN e do Dashboard Gerencial.</li>
+<li><b>As bases sustentam</b> os indicadores de visita, aderência, pedidos e positivação por executivo, em dia / semana / mês. <b>Não sustentam</b> receita líquida, volume em kg, metas, contato telefônico nem a visão do gerente (não há hierarquia de pessoas nas bases).</li>
+<li><b>Os dados são pequenos; a complexidade está em duas coisas:</b> (1) as regras de visita (37% das visitas têm check-in repetido; 211 check-ins sem check-out; mediana de 3,5 min em loja) e (2) a estrutura de pessoas — não existe chave que ligue o login do Mercanet ao executivo da rota. Por isso o primeiro entregável é o <b>de-para de estrutura</b> (<code>docs/DePara_Estrutura_Rota_MODELO.xlsx</code>).</li>
+<li><b>Segurança:</b> um HTML por usuário com recorte físico dos dados (modelo já em produção em 72 + 18 painéis). A senha dentro do HTML, usada no protótipo, não protege dados e foi descartada.</li>
+</ul></section>
+
+<section id="dec"><h2>Decisões tomadas nesta fase</h2><div class="sub">Douglas, 17/09/2026</div>
+<div class="tw"><table><tr><th>#</th><th>Decisão</th></tr>
+<tr><td>D-01</td><td>Layout do <code>Diario_Rota_Campo.html</code>, acrescido dos blocos <b>dia · semana · mês</b>; identidade visual do DN.</td></tr>
+<tr><td>D-02</td><td>Regras do protótipo <code>painel_execucao_rota_22.html</code> como ponto de partida: 1 visita por cliente × dia (guardando nº de registros e minutos); pedido <i>Cancelado</i> fora; valor = bruto − desconto; pedido conta para a loja quando digitado no dia da rota ou no dia seguinte; lojas TELEFONE acompanhadas só por pedido; semana = segunda-feira até o dia selecionado; faixas 90 / 60.</td></tr>
+<tr><td>D-03</td><td><b>Aderência medida no mês:</b> check-in em qualquer dia do mês conta. Denominador = roteiro já vencido até a data.</td></tr>
+<tr><td>D-04</td><td>Receita fora do painel por ora. "Volume" = <code>Quantidade solicitada</code> dos pedidos — <b>em aberto</b>: unidade e nome do indicador a fechar com o Gui.</td></tr>
+<tr><td>D-05</td><td>Solução mais simples de sustentar: <b>1 HTML por visão, recorte físico, sem senha</b>, publicado em <code>Painéis Comerciais\Gerencial\&lt;usuário&gt;\Painel_Rota.html</code> (pastas faltantes serão criadas).</td></tr>
+<tr><td>D-06</td><td>Extrações do Mercanet acumuladas do mês; atualização 1× ao dia, com desenho pronto para 4×.</td></tr>
+<tr><td>D-07</td><td>Histórico guardado: rota mensal e partição por mês. <b>Revista em 17/09:</b> os meses fechados são <b>reextraídos do Mercanet</b> (é possível pedir período passado) e ficam na pasta ao lado do arquivo do mês corrente; setembro entra quando fechar.</td></tr>
+<tr><td>D-08</td><td>Padrão técnico: base no DN (comando único, manifesto, render com contrato de campos, publicação atômica) + git, <code>requirements.txt</code>, <code>tests/</code> e documentação numerada do Gerencial.</td></tr>
+<tr><td>D-09</td><td>Fase 1 do produto: KPIs, tabela/gráfico por executivo, <b>lista de lojas</b> e tempo em loja. Fase 2: abas "Minha equipe no mês" (radar) e "Lojas em aberto", deslocamento, evolução histórica, metas.</td></tr>
+<tr><td>D-10</td><td>Uso no computador. Operação: Douglas, com o Gui como suplente. O rastreamento por check-in já é prática aceita.</td></tr>
+</table></div></section>
+
+<section id="e1"><h2>Etapa 1 · Padrão dos projetos de referência</h2><div class="sub">Dashboard Gerencial (<code>Documentos\Dashboard - Gerencial</code>) e Scorecard DN (<code>Painéis - Alavancas\DN</code>) — somente leitura</div>
+<div class="tw"><table><tr><th>Tema</th><th>Gerencial</th><th>DN</th><th>Onde está</th></tr>
+<tr><td>Stack</td><td colspan="2">Python 3.11+ (validado 3.14.7) · pandas · pyarrow (Parquet zstd) · python-calamine · openpyxl · PyYAML · numpy. Sem servidor, sem internet. Front-end HTML/CSS/JS puro em template editado à mão (Gerencial embute Chart.js 4.4.1; DN sem biblioteca de gráfico).</td><td><code>requirements.txt</code>; <code>docs/09</code> §1</td></tr>
+<tr><td>Estrutura</td><td><code>bases/ config/ src/{extract,transform,load,utils} data/{raw,staging,curated,quality} dashboard/ docs/ logs/ tests/ ferramentas/ _arquivo/</code></td><td><code>bases/ config/ dn/{extract,transform,load,utils} data/dn/{staging,curated,quality,logs} template/ docs/</code></td><td>README dos dois</td></tr>
+<tr><td>Execução</td><td>2 comandos: <code>run_pipeline.py</code> + <code>run_dashboard.py</code></td><td>1 comando: <code>run_dn.py</code> (<code>--sem-publicar</code>, <code>--forcar</code>, <code>--mes</code>, <code>--usuario</code>)</td><td><code>run_dn.py</code></td></tr>
+<tr><td>Fluxo</td><td colspan="2">xlsx → extract (valida schema, tira rodapé, normaliza) → staging (cache Parquet por arquivo, chave = caminho + tamanho + mtime + hash) → fato e dimensões → integridade e reconciliação com o total da fonte → agregados → curated (Parquet zstd, fato particionada por ANO) → render → validar → publicar. Reprocessamento completo e idempotente; qualquer falha = <i>PIPELINE ABORTADO</i>, nada publicado.</td><td><code>docs/09</code> §3; <code>docs/13</code>; README DN</td></tr>
+<tr><td>Dados no HTML</td><td colspan="2">Embutidos no próprio arquivo (gzip + base64, descompactados no navegador com <code>DecompressionStream</code>); zero requisição de rede, porque <code>file://</code> bloqueia <code>fetch</code> e o painel abre por duplo clique a partir do OneDrive.</td><td><code>run_dashboard.py:333</code>; <code>dn/render.py</code></td></tr>
+<tr><td>Atualização</td><td>Manual, diária (~1 min)</td><td>Manual, mensal + parciais (~2,5 min)</td><td><code>docs/14</code>; README DN</td></tr>
+<tr><td>Publicação e acesso</td><td colspan="2">Cópia atômica com MD5 para <code>Painéis Comerciais\...</code>, nome de arquivo estável. Um arquivo por usuário (72 no Gerencial, 18 no DN) com <b>recorte físico</b> dos dados, assert de vazamento e conferência de somas; pasta compartilhada com a pessoa específica, <i>Pode exibir</i>.</td><td><code>docs/15</code>; <code>docs/distribuicao_etapa2.md</code></td></tr>
+<tr><td>Controles</td><td>Log por execução, relatório de qualidade + CSVs de exceção, 80 testes, 15 docs numerados, registro de decisões D-01..D-81, git</td><td>Log + <code>resumo.json</code>, manifesto das bases, 120 validações, <code>regras_negocio.md</code>, <code>RETOMADA.md</code>; <b>sem git, requirements e tests</b></td><td>listagem</td></tr>
+</table></div>
+<p><span class="t p">PROPOSTA</span> <b>Replicar:</b> comando único, cache + manifesto, abortar sem publicar, reconciliação com a fonte, relatório de qualidade, geração fora do OneDrive (<code>%LOCALAPPDATA%</code>), publicação com MD5, recorte físico por usuário, identidade visual do DN. <b>Evitar:</b> módulos de 100 KB, projeto sem git/tests, documentação fragmentada em dezenas de relatórios, HTML perto do teto de tamanho.</p></section>
+
+<section id="e2"><h2>Etapa 2 · Entendimento do negócio</h2><div class="sub">Transcrição bruta e resumida da reunião de 16/09 (Gui explica o projeto)</div>
+<ul>
+<li><span class="t f">FATO</span> <b>Projeto Rota:</b> 28 representações (~46 pessoas) substituídas por <b>22 executivos em 5 supervisões</b>, atendendo atacados menores e varejo especializado (doceiro, bombonier) em SP, MG e Centro-Oeste (DF/GO/TO). Um executivo "híbrido" no Centro-Oeste atende parte presencial, parte por telefone.</li>
+<li><span class="t f">FATO</span> <b>Objetivo do projeto:</b> levar a frequência de visita de 4,4 para 12 por ano (todo cliente, todo mês). "Proximidade, frequência de visita para começar a gerar pedido"; faturamento é consequência.</li>
+<li><span class="t f">FATO</span> <b>Por que existe o roteiro:</b> clientes pequenos têm baixa prioridade de entrega; as rotas de maior faturamento são visitadas nas semanas 3 e 4 para que a entrega ocupe as semanas 1 e 2 do mês seguinte (lead time ~15 dias).</li>
+<li><span class="t f">FATO</span> <b>Objetivo do painel:</b> gestão do dia a dia do time de campo — dia, acumulado da semana e do mês; KPIs citados: aderência à rota, check-in/check-out, pedidos tirados, frequência.</li>
+<li><span class="t f">FATO</span> <b>Bases:</b> rota planejada (construída pelo Gui, muda data e ordem a cada mês), check-in/check-out e consulta de pedidos (extraídas diariamente do Mercanet; pedidos do canal Atacado inteiro, valor bruto de tabela).</li>
+</ul>
+<h3>Conflitos entre a transcrição resumida e a bruta</h3>
+<div class="tw"><table><tr><th>Resumida</th><th>Bruta / arquivos</th></tr>
+<tr><td>"~500k linhas"</td><td>"500k" é tamanho: os CSVs têm 595 KB e 481 KB (3.070 e 2.468 linhas).</td></tr>
+<tr><td>Duas bases: check-in e check-out</td><td>São check-in/out <b>e</b> consulta de pedidos; a rota planejada é a terceira.</td></tr>
+<tr><td>"Pasta acessível a todos, senha filtra"</td><td>Foi uma ideia levantada na conversa, não decisão. Descartada (D-05).</td></tr>
+<tr><td>"Faturamento substituído por volume"</td><td>Era possibilidade ("talvez"); decidida agora como D-04, ainda em aberto.</td></tr>
+</table></div></section>
+
+<section id="e3"><h2>Etapa 3 · Engenharia reversa dos protótipos</h2>
+<h3>Protótipo 1 — <code>Diario_Rota_Campo.html</code> (layout a seguir)</h3>
+<p>33,6 KB, uma página, dados fictícios declarados no rodapé (22 rotas, 31/08). Cabeçalho (ciclo, atualização, fontes) · banner de metas · filtro por supervisor · 4 cards grandes (visitas, aderência, "sellin do dia", positivação) · 3 cards pequenos (volume, tempo em loja, deslocamento) · bloco Tabela/Gráfico por rota. Só mostra <b>o dia</b>; espera <b>sell-in</b> e <b>arquivo de metas</b>, que não existem nas bases; usa códigos de rota (V01…) e "base" que também não existem.</p>
+<h3>Protótipo 2 — <code>painel_execucao_rota_22.html</code> (mostrado na reunião; fonte das regras)</h3>
+<p>325 KB, gerado das mesmas 3 bases (dados até 16/09). Login por senha → escolha de visão (5 supervisões, "Hudson · Robson · Marco", "Brasil"). Abas: <b>Roteiro do dia</b> (cards dia / semana / mês, gráficos planejado × realizado, lista de lojas com status), <b>Minha equipe no mês</b> (tabela + radar de 5 indicadores + prioridades de ação) e <b>Lojas em aberto</b>. Traz as regras de cálculo escritas no código e no rodapé (adotadas em D-02).</p>
+<div class="box r"><b>Segurança do protótipo 2:</b> as senhas estão em texto puro no código-fonte e os dados de todas as supervisões viajam no mesmo arquivo. Qualquer pessoa com o arquivo lê tudo. Por isso a produção usará um arquivo por usuário (D-05).</div></section>
+
+<section id="e4"><h2>Etapa 4 · Diagnóstico das bases</h2><div class="sub">Pasta <code>\Bases</code> · medições feitas em modo leitura em 17/09/2026</div>
+<div class="tw"><table><tr><th>Base</th><th>Formato</th><th>Linhas</th><th>Período</th><th>Granularidade / chave</th><th>Origem</th></tr>
+<tr><td><code>Rota_14092026.xlsx</code> · aba <code>Base de Clientes</code></td><td>xlsx, 12 colunas, 254 KB</td><td>2.973</td><td>rota de set/26 (20 datas úteis, 02/09 a 30/09)</td><td>1 linha = 1 cliente; <code>Cód. cliente</code> único, 7 dígitos; zero nulos</td><td>construída pelo Gui; mensal</td></tr>
+<tr><td><code>Mercanet.csv</code></td><td>CSV <code>;</code> cp1252, 12 colunas, 595 KB</td><td>3.070</td><td>01/09 06:40 a 16/09 16:15</td><td>1 linha = 1 evento (CHECKIN 1.608 · CHECKOUT 1.462); sem id de visita</td><td>Mercanet; diária, acumulada do mês</td></tr>
+<tr><td><code>Pedidos.csv</code></td><td>CSV <code>;</code> cp1252, decimal com vírgula, 20 colunas, 481 KB</td><td>2.468 + 1 rodapé de totais</td><td>emissão 01/09 a 16/09</td><td>1 linha = 1 pedido; <code>Pedido</code> único</td><td>Mercanet (consulta de pedidos), canal inteiro; diária</td></tr>
+</table></div>
+<h3>Colunas</h3>
+<ul>
+<li><b>Rota:</b> Supervisor (5, só primeiro nome) · Executivo (22, nome curto, 1 <code>[VAGO]</code>) · Cód. cliente · canal (PRESENCIAL 2.689 / TELEFONE 284, todos de Marcus Flavio) · <code>Datas Rota Setembro</code> (o mês está no nome da coluna; uma data por cliente) · cidade · Net Sales 25/26 (R$ 81,7 mi / 80,2 mi; 3 / 10 negativos; ~212 / 283 zeros) · Frequência anual 25/26 (média 5,2 / 4,55) · Volume 25/26 (unidade não declarada). <b>Não tem:</b> ordem de visita, código/nome de rota, nome do cliente, UF, gerente, login.</li>
+<li><b>Mercanet:</b> USUÁRIO / NOME USUÁRIO (16, inclui <code>TESTERTM</code>) · DATA EVENTO (texto dd/mm/aaaa hh:mm:ss) · CÓDIGO / NOME / ENDEREÇO / CIDADE CLIENTE · ESTADO (só SP e MG) · EVENTO TIME LINE · DESCRIÇÃO · LATITUDE / LONGITUDE <b>truncadas em inteiro</b> (sem uso).</li>
+<li><b>Pedidos:</b> Pedido · Código · Cliente · Ordem de compra (81% vazia) · datas de emissão / entrega estimada / faturamento · Situação (Aberto 801 · Fatur. Parcial 784 · Faturado 588 · Fatur.+Canc. 160 · Bloqueado 102 · Cancelado 33) · Valor total do pedido (R$ 17,73 mi = rodapé) · Quantidade solicitada (208.960 = rodapé; unidade não declarada) · Valor total bruto (R$ 29,50 mi = rodapé) · desconto · Representante (121 códigos) · Cidade / UF · Nota fiscal · CNPJ (17 são CPF). <b>Não tem</b> kg nem itens/SKU.</li>
+</ul>
+<h3>Qualidade e cruzamentos</h3>
+<div class="tw"><table><tr><th>#</th><th>Achado</th><th>Medida</th></tr>
+<tr><td>Q1</td><td>Check-ins repetidos no mesmo cliente e dia</td><td>351 de 939 visitas (37,4%); máximo 16</td></tr>
+<tr><td>Q2</td><td>Check-in sem check-out pareado</td><td>211 de 1.608; 9 check-outs sem check-in; 1 linha 100% duplicada</td></tr>
+<tr><td>Q3</td><td>Durações implausíveis</td><td>mediana 3,5 min; 444 visitas &lt; 1 min; 48 &gt; 120 min; 30 cruzam a meia-noite</td></tr>
+<tr><td>Q4</td><td>Executivos sem nenhum check-in</td><td>Hygor Dorea, Icaro Sanches, Luis Sousa, Marcus Flavio, Mauricio Rodrigues, Richard Silva</td></tr>
+<tr><td>Q5</td><td>Sem chave executivo ↔ login</td><td>Nomes em formatos diferentes. Pelo cliente visitado o vínculo é consistente (99–100% dos eventos de cada login caem em clientes de um só executivo)</td></tr>
+<tr><td>Q6</td><td><code>Representante</code> não identifica o executivo</td><td>38 códigos nos pedidos de clientes da rota; 2 a 8 por executivo</td></tr>
+<tr><td>Q7</td><td>Chave de cliente consistente</td><td>Mercanet ∩ Rota: 677 de 682 (5 clientes / 11 eventos fora da rota)</td></tr>
+<tr><td>Q8</td><td>Pedidos de clientes da rota</td><td>558 de 2.468 pedidos · 492 clientes · R$ 4,0 mi</td></tr>
+<tr><td>Q9</td><td>Visita no dia exato da rota</td><td>290 de 1.510 planejados até 16/09 (<b>19,2%</b>); das 934 visitas a clientes da rota, 644 foram em outro dia</td></tr>
+<tr><td>Q10</td><td>Telefone</td><td>142 planejados até 16/09, 0 check-ins (não há registro de ligação)</td></tr>
+<tr><td>Q11</td><td>Visita × pedido</td><td>60 de 939 visitas com pedido emitido no mesmo dia; 262 cliente-dias com mais de 1 pedido</td></tr>
+<tr><td>Q12</td><td>bruto − desconto ≠ valor do pedido</td><td>155 linhas (92 Bloqueado, 33 Cancelado)</td></tr>
+</table></div>
+<p><b>Dados sensíveis:</b> nome, login, horário e local de cada visita por funcionário (dado pessoal; prática aceita — D-10) · CPF de 17 clientes, CNPJ, razão social, endereço · Net Sales por cliente, desconto médio (~40%), preço médio líquido.</p></section>
+
+<section id="e5"><h2>Etapa 5 · Aderência protótipo × bases</h2><div class="sub">R = Rota · M = Mercanet · P = Pedidos</div>
+<div class="tw"><table><tr><th>Indicador / dimensão</th><th>Base · colunas</th><th>Regra</th><th>Status</th><th>Observação</th></tr>
+<tr><td>Posição no ciclo ("dia X de 20")</td><td>R · datas da rota</td><td>posição da data entre as datas distintas do mês</td><td><span class="t pa">PARCIAL</span></td><td>"ciclo" = dias de rota do mês</td></tr>
+<tr><td>Atualizado em / dados até</td><td>metadado do pipeline</td><td>maior data de cada fonte</td><td><span class="t at">ATENDIDO</span></td><td></td></tr>
+<tr><td>4 janelas de atualização · fonte "Sellin" · arquivo de metas</td><td>—</td><td>—</td><td><span class="t gap">GAP</span></td><td>cadência real é 1×/dia; não há sell-in nem metas</td></tr>
+<tr><td>Supervisor (filtro/visão)</td><td>R · Supervisor</td><td>distintos</td><td><span class="t pa">PARCIAL</span></td><td>só primeiro nome; rótulo e pasta vêm do de-para</td></tr>
+<tr><td>Rota/vendedor (código, nome, base)</td><td>R · Executivo</td><td>—</td><td><span class="t pa">PARCIAL</span></td><td>a linha será o executivo; código de rota e "base" são GAP</td></tr>
+<tr><td>Visitas planejadas</td><td>R · cliente, data, executivo, canal</td><td>clientes PRESENCIAL com data no período</td><td><span class="t at">ATENDIDO</span></td><td>telefone fora do controle de visita (D-02)</td></tr>
+<tr><td>Visitas realizadas · não realizadas</td><td>M + R + de-para</td><td>clientes distintos com check-in (dedup cliente × dia)</td><td><span class="t pa">PARCIAL</span></td><td>depende do de-para de logins</td></tr>
+<tr><td>Aderência</td><td>R + M</td><td>roteiro vencido com ≥ 1 check-in no mês ÷ roteiro vencido (D-03)</td><td><span class="t pa">PARCIAL</span></td><td>6 executivos sem app aparecem zerados</td></tr>
+<tr><td>1ª entrada · última saída</td><td>M</td><td>mín. check-in / máx. check-out do dia</td><td><span class="t at">ATENDIDO</span></td><td></td></tr>
+<tr><td>Tempo médio em loja</td><td>M</td><td>média (check-out − check-in) das visitas pareadas</td><td><span class="t pa">PARCIAL</span></td><td>corte de duração a definir (P-04)</td></tr>
+<tr><td>Tempo de deslocamento</td><td>M</td><td>—</td><td><span class="t pa">PARCIAL</span></td><td>adiado para a fase 2 (D-09)</td></tr>
+<tr><td>Pedidos · positivação</td><td>P + R</td><td>pedido válido no dia da rota ou no seguinte, vinculado pelo cliente</td><td><span class="t pa">PARCIAL</span></td><td>protótipo 1 previa sell-in; fonte real é a consulta de pedidos</td></tr>
+<tr><td>Receita / "sellin do dia"</td><td>—</td><td>—</td><td><span class="t gap">GAP</span></td><td>fora do painel (D-04)</td></tr>
+<tr><td>Volume (kg)</td><td>—</td><td>—</td><td><span class="t gap">GAP</span></td><td>substituído por <code>Quantidade solicitada</code>, unidade em aberto (P-02)</td></tr>
+<tr><td>Meta e % da meta</td><td>—</td><td>—</td><td><span class="t gap">GAP</span></td><td>protótipo 2 usa Net Sales 26 ÷ frequência; decisão na fase 2 (P-06)</td></tr>
+<tr><td>Visão do gerente</td><td>—</td><td>—</td><td><span class="t gap">GAP</span></td><td>vem do de-para (aba Visoes)</td></tr>
+<tr><td>Contato por telefone</td><td>—</td><td>—</td><td><span class="t gap">GAP</span></td><td>sem registro de ligação</td></tr>
+<tr><td>Dia / semana / mês</td><td>R + M + P</td><td>semana = segunda até o dia; mês = dia 1 até o dia</td><td><span class="t at">ATENDIDO</span></td><td>extrações acumuladas do mês</td></tr>
+</table></div>
+<div class="box b"><b>Conclusão:</b> as bases são suficientes para a versão de execução de rota (visitas, aderência, pedidos, positivação, lista de lojas). Falta, para começar: o <b>de-para de estrutura</b>. Falta, para indicadores futuros: sell-in/kg, metas, registro de ligações.</div></section>
+
+<section id="e6"><h2>Etapa 6 · Arquitetura e modelagem</h2><div class="sub"><span class="t p">PROPOSTA</span></div>
+<pre>DIM_CALENDARIO ─┐                        ┌─ DIM_EXECUTIVO (22) ── SUPERVISOR ── DIM_VISAO (N:N)
+                ├── FATO_ROTA_PLANEJADA ─┤
+                ├── FATO_VISITA ─────────┼─ DIM_CLIENTE
+                └── FATO_PEDIDO ─────────┘</pre>
+<div class="tw"><table><tr><th>Tabela</th><th>Granularidade</th><th>Origem</th></tr>
+<tr><td>FATO_ROTA_PLANEJADA</td><td>mês da rota × cliente (data da rota, canal, executivo, Net Sales, frequência, volume histórico)</td><td>Rota mensal</td></tr>
+<tr><td>FATO_VISITA</td><td>login × cliente × dia, deduplicada (1º check-in, último check-out, nº de registros, minutos, flags: na rota do mês, no dia da rota, dia útil)</td><td>Mercanet</td></tr>
+<tr><td>FATO_PEDIDO</td><td>pedido (todos; flags <i>válido</i> e <i>cliente de rota</i>; nada é descartado)</td><td>Pedidos</td></tr>
+<tr><td>DIM_EXECUTIVO · DIM_VISAO</td><td>executivo (login, supervisor, ativo, usa app) · painel a gerar (pasta, nível, supervisões)</td><td>Rota + de-para</td></tr>
+<tr><td>DIM_CLIENTE · DIM_CALENDARIO</td><td>cliente (nome quando existir, cidade, na rota) · dia (semana, dia útil, dia de rota, nº no ciclo)</td><td>3 bases · gerada</td></tr>
+</table></div>
+<h3>Camadas e pipeline (<code>python run_rota.py</code>)</h3>
+<div class="tw"><table><tr><th>#</th><th>Etapa</th><th>Aborta se</th><th>Avisa</th></tr>
+<tr><td>0</td><td>verificar</td><td>config, bases ou de-para ausentes</td><td>base mais antiga que o esperado</td></tr>
+<tr><td>1</td><td>ingerir (raw → staging Parquet)</td><td>coluna obrigatória faltando · data inválida · soma dos pedidos ≠ rodapé · rota com mais de um mês ou cliente repetido</td><td>linhas rejeitadas por arquivo</td></tr>
+<tr><td>2</td><td>modelar (→ curated)</td><td>FK órfã · executivo sem de-para · login duplicado</td><td>clientes fora da rota · executivos sem app · check-ins sem par · durações fora do corte</td></tr>
+<tr><td>3</td><td>calcular</td><td>soma por executivo ≠ total</td><td></td></tr>
+<tr><td>4–5</td><td>renderizar e validar (por visão)</td><td>prova do renderizador · cards ≠ fatos · <b>vazamento entre visões</b> · soma dos supervisores ≠ Brasil · HTML acima do teto</td><td></td></tr>
+<tr><td>6</td><td>publicar</td><td>—</td><td>visão sem pasta (não publica aquela visão); cópia só quando o MD5 muda</td></tr>
+</table></div>
+<ul>
+<li><b>Parquet</b> (medido em memória): Rota 254 → 108 KB · Mercanet 595 → 72 KB · Pedidos 481 → 181 KB. Projeção: ~70 mil eventos e ~60 mil pedidos por ano (&lt; 5 MB/ano). O Parquet entra por tipagem, histórico e alinhamento ao padrão, não por volume. Partição por <code>ANO_MES</code>.</li>
+<li><b>Histórico:</b> <code>bases/Rota/</code> com 1 arquivo por mês (o mês sai do conteúdo, não do nome); partição do mês corrente substituída a cada execução; mês fechado reextraído do Mercanet e deixado na pasta ao lado do arquivo do mês corrente (D-07 revista); mesmo mês em dois arquivos aborta; validação de que o mês fechado vai até o último dia útil.</li>
+<li><b>HTML:</b> autocontido, sem fonte ou script externo; dados do protótipo 2 (1 mês, todos os usuários) = 254 KB brutos / 87 KB comprimidos → esperado &lt; 1 MB por painel; teto 5 MB. Sem CNPJ/CPF, endereço ou desconto embutidos.</li>
+</ul>
+<pre>ROTA/
+├── bases/        Rota/ · Mercanet/ · Pedidos/ · Estrutura/DePara_Estrutura_Rota.xlsx
+├── config/config.yaml
+├── rota/         extract/ transform/ load/ utils/ · pipeline · metricas · painel · render · qualidade · distribuicao · manifesto
+├── template/     template.html · data-inventory.json
+├── data/rota/    staging/ · curated/ · quality/ · logs/      (HTML gerado em %LOCALAPPDATA%\Dori\ROTA\painel)
+├── docs/ · tests/ · referencia/ (protótipos e transcrições)
+└── run_rota.py · requirements.txt · README.md · .gitignore</pre></section>
+
+<section id="e7"><h2>Etapa 7 · Requisitos, impactos e riscos</h2>
+<h3>Requisitos</h3>
+<div class="tw"><table><tr><th>Funcionais</th><th>Não funcionais</th></tr><tr><td><ul>
+<li>Página no layout Diário Rota com seletor de dia e blocos dia · semana · mês</li><li>KPIs: roteiro, visitadas (no dia / fora do dia), não atendidas, aderência no mês, com pedido, positivação, volume (em aberto), tempo em loja</li>
+<li>Tabela e gráfico por executivo (por supervisão nas visões agrupadas)</li><li>Lista de lojas do dia com status (visita + pedido · só visita · só pedido · sem contato)</li>
+<li>Telefone acompanhado só por pedido; selo "sem app"</li><li>"Dados até" por fonte; metas ocultas até existirem</li><li>1 HTML por visão, comandado pelo de-para</li></ul></td>
+<td><ul><li>Pipeline completo ≤ 1 min; idempotente (mesma base → mesmo MD5)</li><li>HTML ≤ 5 MB (esperado &lt; 1 MB); abre em &lt; 2 s, offline, por duplo clique</li><li>Chrome e Edge no computador</li>
+<li>Falha segura: aborta sem publicar; erro numa visão não derruba as outras</li><li>Zero regra de negócio no código (config + de-para)</li><li>Operável por outra pessoa (README, guia, RETOMADA)</li></ul></td></tr></table></div>
+<h3>Segurança e governança</h3>
+<ul>
+<li><b>Dados embutidos = quem tem o arquivo tem os dados.</b> Mitigação: recorte físico por usuário + permissão por pasta (pessoa específica, <i>Pode exibir</i>; nunca "qualquer pessoa com o link"). Risco residual aceito, igual aos outros painéis: o arquivo sincronizado pode ser reenviado.</li>
+<li>Alternativas avaliadas: senha em JavaScript (rejeitada, cosmética) · criptografia dos dados com senha (viável, mais complexa, senha fraca é quebrável) · Power BI com RLS (seguro, fora do padrão e com licença).</li>
+<li><b>Donos:</b> rota mensal e de-para → Gui / time de Atacado · extrações do Mercanet → Douglas (suplente Gui) · pipeline e painel → Douglas.</li>
+<li>Git para código, config e docs; dados fora do repositório; manifesto registra de quais arquivos cada painel nasceu; reconciliação com a fonte a cada execução; aceite com números iguais aos do protótipo 2 em 16/09.</li>
+</ul>
+<h3>Matriz de riscos</h3>
+<div class="tw"><table><tr><th>#</th><th>Risco</th><th>Prob.</th><th>Impacto</th><th>Mitigação</th><th>Responsável</th></tr>
+<tr><td>R-01</td><td>De-para de estrutura não entregue ou desatualizado</td><td>Média</td><td>Alto</td><td>modelo pronto; pipeline aborta listando quem falta</td><td>Gui / Atacado</td></tr>
+<tr><td>R-02</td><td>Baixa adoção do check-in distorce a aderência</td><td>Alta</td><td>Alto</td><td>selo "sem app"; relatório de qualidade; comunicação ao campo antes do lançamento</td><td>Gui / supervisores</td></tr>
+<tr><td>R-03</td><td>Extração manual diária falha</td><td>Alta</td><td>Médio</td><td>"dados até" visível; aviso de base velha; suplente definido; automação futura</td><td>Douglas / Gui</td></tr>
+<tr><td>R-04</td><td>Mês fecha incompleto (extração sobrescrita)</td><td>Média</td><td>Médio</td><td>validação da última data; o mês fechado é reextraído do Mercanet</td><td>Douglas</td></tr>
+<tr><td>R-05</td><td>Layout da rota muda (mês no nome da coluna)</td><td>Alta</td><td>Médio</td><td>leitor por padrão + conteúdo; schema validado; acordo de layout fixo</td><td>Gui</td></tr>
+<tr><td>R-06</td><td>Regras ainda abertas geram retrabalho</td><td>Média</td><td>Médio</td><td>tudo em config; validação antes de cada fase</td><td>Douglas / Gui</td></tr>
+<tr><td>R-07</td><td>"Volume" exibido com unidade errada</td><td>Média</td><td>Médio</td><td>não publicar o card até confirmar a unidade</td><td>Gui</td></tr>
+<tr><td>R-08</td><td>Números divergentes do painel do Gui</td><td>Média</td><td>Alto</td><td>reconciliação formal no aceite; diferenças documentadas</td><td>Douglas</td></tr>
+<tr><td>R-09</td><td>Exposição de dados pessoais / reenvio do HTML</td><td>Baixa</td><td>Alto</td><td>recorte físico; permissão por pasta; mínimo de campos</td><td>Douglas</td></tr>
+<tr><td>R-10</td><td>Dependência de uma pessoa e uma máquina</td><td>Média</td><td>Médio</td><td>git + guia; suplente treinado</td><td>Douglas</td></tr>
+</table></div></section>
+
+<section id="e8"><h2>Etapa 8 · Roadmap</h2>
+<div class="tw"><table><tr><th>Fase</th><th>Entregáveis</th><th>Depende de</th><th>Critério de aceite</th><th>Validação com o negócio</th></tr>
+<tr><td><b>1 · Fundação</b></td><td>estrutura de pastas, git, requirements, config, leitores das 3 bases e do de-para, staging + manifesto, log, docs de inventário e dicionário</td><td>de-para preenchido; autorização para reorganizar <code>\Bases</code></td><td>contagens iguais às do diagnóstico (3.070 · 2.468 · 2.973); soma dos pedidos = rodapé; aborta com mensagem clara</td><td>Gui valida o de-para</td></tr>
+<tr><td><b>2 · Modelo e regras</b></td><td>fatos e dimensões, métricas, relatório de qualidade, testes, docs de modelo e métricas</td><td>Fase 1; P-02, P-04</td><td>FKs 100%; testes verdes; <b>reconciliação com o protótipo 2 em 16/09</b></td><td>Gui valida os números por supervisor</td></tr>
+<tr><td><b>3 · Painel</b></td><td>template, contrato de campos, render com prova, validações card = fato</td><td>Fase 2 (template pode começar em paralelo)</td><td>abre offline em &lt; 2 s, &lt; 5 MB; números = curated</td><td>revisão de tela com dados reais</td></tr>
+<tr><td><b>4 · Distribuição</b></td><td>7 visões, assert de vazamento e soma, publicação com MD5, criação de pastas, guia operacional</td><td>Fase 3; pastas e permissões</td><td>soma dos 5 supervisores = Brasil; zero vazamento</td><td>piloto com 1 supervisor + head por 1 semana</td></tr>
+<tr><td><b>5 · Operação assistida</b></td><td>rotina diária e fechamento mensal documentados, RETOMADA, registro de decisões</td><td>Fase 4</td><td>2 semanas estáveis; 1º fechamento de mês sem perda; Gui executa sozinho uma vez</td><td>aceite final</td></tr>
+<tr><td><b>6 · Evolução</b></td><td>abas "Minha equipe" e "Lojas em aberto", deslocamento, evolução da frequência (4,4 → 12), metas, 4×/dia com agendador</td><td>operação estável</td><td>por item</td><td>Gui prioriza</td></tr>
+</table></div>
+<p><b>Caminho crítico:</b> de-para de estrutura → Fase 1 → reconciliação da Fase 2.</p></section>
+
+<section id="pen"><h2>Pendências</h2>
+<div class="tw"><table><tr><th>#</th><th>Pendência</th><th>Com quem</th><th>Bloqueia</th></tr>
+<tr><td>P-01</td><td>Preencher o de-para (<code>docs/DePara_Estrutura_Rota_MODELO.xlsx</code>): confirmar 15 logins sugeridos, informar os 6 sem check-in, definir usuários e pastas das 7 visões, quem é o gerente de Hudson · Robson · Marco</td><td>Gui / Atacado</td><td>Fase 1</td></tr>
+<tr><td>P-02</td><td>Unidade e nome do indicador de volume (<code>Quantidade solicitada</code>)</td><td>Gui</td><td>card de volume</td></tr>
+<tr><td>P-03</td><td>Por que 6 executivos não têm check-in, e o plano</td><td>Gui</td><td>leitura da aderência</td></tr>
+<tr><td>P-04</td><td>Corte de duração para visita válida e tempo em loja (&lt; 1 min? &gt; 120 min? sem check-out?)</td><td>Gui</td><td>Fase 2</td></tr>
+<tr><td>P-05</td><td>Layout fixo da rota mensal (nome estável da coluna de data) e nome do arquivo</td><td>Gui</td><td>Fase 1</td></tr>
+<tr><td>P-06</td><td>Meta: arquivo próprio ou Net Sales 26 ÷ frequência?</td><td>Gui</td><td>fase 2 do produto</td></tr>
+<tr><td>P-07</td><td><code>Frequência anual</code> é de visita ou de compra?</td><td>Gui</td><td>evolução da frequência</td></tr>
+<tr><td>P-08</td><td>Visitas em fim de semana e check-in em cliente fora da rota contam?</td><td>Gui</td><td>Fase 2</td></tr>
+<tr><td>P-09</td><td>Pedido <i>Bloqueado</i> conta como pedido tirado? (o protótipo 2 conta)</td><td>Gui</td><td>Fase 2</td></tr>
+<tr><td>P-10</td><td>Registro do contato telefônico (284 clientes)</td><td>Gui / Mercanet</td><td>fase 2 do produto</td></tr>
+</table></div></section>
+
+<section id="prox"><h2>Próximos passos imediatos</h2>
+<ol>
+<li><b>Douglas + Gui:</b> P-01 (levar o modelo do de-para), P-02, P-03 e P-05.</li>
+<li><b>Na virada do mês:</b> extrair do Mercanet o mês de setembro fechado (check-ins e pedidos) — é o primeiro mês do histórico.</li>
+<li><b>Douglas:</b> aprovar a Fase 0 e autorizar o início da Fase 1 (criação da estrutura de pastas e reorganização de <code>\Bases</code>, com confirmação item a item).</li>
+</ol>
+<p class="sub">Arquivos originais (bases, protótipos, transcrições e projetos de referência) não foram alterados nesta fase. Criados: <code>docs/Fase0_Diagnostico_Roadmap.html</code> e <code>docs/DePara_Estrutura_Rota_MODELO.xlsx</code>.</p></section>
+</main></div></body></html>

@@ -1,0 +1,15 @@
+# Painel de Rota
+#
+# As mesmas dependências do Dashboard Gerencial e do Scorecard DN, todas já
+# presentes na máquina (medido em 17/09/2026). Nenhuma biblioteca de IA, nenhum
+# cliente HTTP, nenhum servidor. Validado com Python 3.14.7.
+
+pandas>=2.2            # 3.0.5 na máquina
+pyarrow>=15.0          # 25.0.1 — Parquet (staging e curated)
+python-calamine>=0.2   # leitura de xlsx (rota mensal e de-para)
+openpyxl>=3.1          # 3.1.5  — escrita de xlsx (modelo do de-para e testes)
+PyYAML>=6.0            # 6.0.3  — config
+numpy>=1.26            # 2.5.2  — vem com o pandas, declarado por clareza
+
+# Testes: não exigem pytest.
+#   python tests/test_leitores.py

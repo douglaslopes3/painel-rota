@@ -1,0 +1,92 @@
+# Configuração do Painel de Rota (pipeline único `run_rota.py`).
+# Toda regra declarada aqui vem de decisão registrada em docs/10_DECISOES.md (D-nn) ou está marcada como pendência (P-nn).
+# Caminhos relativos são resolvidos a partir da raiz do projeto (a pasta ROTA/); absolutos passam direto.
+
+projeto:
+  nome: Painel de Rota · Projeto Rota (Atacado)
+  pasta_dados: data/rota            # staging/, curated/, quality/ ficam aqui
+  pasta_logs: data/rota/logs
+  # JSON e HTML de cada execução nascem numa pasta LOCAL, fora do OneDrive (padrão do DN); só o publicado vai para a pasta sincronizada
+  pasta_painel: "%LOCALAPPDATA%/Dori/ROTA/painel"
+
+logs:
+  manter_ultimos: 30                # logs e resumos de execução mantidos
+
+fontes:
+  # O MÊS de cada arquivo vem do CONTEÚDO (datas), nunca do nome. Dois arquivos da mesma fonte com o mesmo mês abortam:
+  # substituir o arquivo do mês corrente, nunca adicionar (versão antiga vai para uma subpasta, ex.: _versoes/, que não é lida).
+  rota:                             # rota planejada do mês · 1 linha = 1 cliente · construída pelo time de Atacado
+    pasta: Bases/Rota
+    padroes_aceitos: ["Rota_*.xlsx"]
+    aba: Base de Clientes
+    # a coluna de data traz o mês no nome ("Datas Rota Setembro"): é localizada por padrão, sem acento e sem caixa (P-05)
+    coluna_data_regex: "^DATAS? ROTA"
+    colunas:                        # nome na planilha -> nome no staging
+      "Supervisor": SUPERVISOR
+      "Executivo": EXECUTIVO
+      "Cód. cliente": COD_CLIENTE
+      "canal": CANAL
+      "cidade": CIDADE
+      "Net Sales 25": NET_SALES_25
+      "Net Sales 26": NET_SALES_26
+      "Frequência anual 2025": FREQ_25
+      "Frequência anual 2026": FREQ_26
+      "Volume 25": VOLUME_25
+      "Volume 26": VOLUME_26
+    canais_esperados: [PRESENCIAL, TELEFONE]      # gabarito de conferência: valor fora da lista vira aviso, não é corrigido
+
+  checkins:                         # Mercanet · timeline de check-in/check-out · 1 linha = 1 evento · extração acumulada do mês (D-06)
+    pasta: Bases/Mercanet
+    padroes_aceitos: ["*.csv"]
+    separador: ";"
+    encoding: cp1252
+    formato_data: "%d/%m/%Y %H:%M:%S"
+    colunas:
+      "USUÁRIO": LOGIN
+      "NOME USUÁRIO": NOME_USUARIO
+      "DATA EVENTO": DATA_HORA
+      "CÓDIGO CLIENTE": COD_CLIENTE
+      "NOME CLIENTE": NOME_CLIENTE
+      "CIDADE CLIENTE": CIDADE
+      "ESTADO": UF
+      "EVENTO TIME LINE": EVENTO
+    # NÃO vão para o staging (minimização, Etapa 7): ENDEREÇO CLIENTE, DESCRIÇÃO TIMELINE, LATITUDE e LONGITUDE (truncadas em inteiro na origem)
+    eventos_esperados: [CHECKIN, CHECKOUT]
+    logins_ignorados:               # descartados na leitura, contados no log. A confirmar pelo Gui na aba Logins_sem_executivo do de-para (P-01)
+      TESTERTM: "usuário de teste (1 evento em 03/09/2026)"
+
+  pedidos:                          # Mercanet · consulta de pedidos · 1 linha = 1 pedido · canal Atacado inteiro · acumulada do mês
+    pasta: Bases/Pedidos
+    padroes_aceitos: ["*.csv"]
+    separador: ";"
+    encoding: cp1252
+    formato_data: "%d/%m/%Y"
+    colunas:
+      "Pedido": PEDIDO
+      "Código": COD_CLIENTE
+      "Cliente": NOME_CLIENTE
+      "Data de emissão": DATA_EMISSAO
+      "Data Estimada de Entrega": DATA_ENTREGA_ESTIMADA
+      "Data de faturamento": DATA_FATURAMENTO
+      "Situação": SITUACAO
+      "Valor total do pedido": VALOR_PEDIDO
+      "Quantidade solicitada": QTD_SOLICITADA          # unidade não declarada na origem (P-02)
+      "Valor total bruto": VALOR_BRUTO
+      "Valor desconto": VALOR_DESCONTO
+      "Representante": REPRESENTANTE
+      "Cidade": CIDADE
+      "UF": UF
+    # NÃO vão para o staging: Ordem de compra, Sit. Embarque, Nota fiscal, Cliente CNPJ (17 são CPF), Desconto médio, Preço médio liquido
+    # a última linha do arquivo é um rodapé de totais: sai dos dados e vira o GABARITO de reconciliação
+    reconciliar: [VALOR_PEDIDO, QTD_SOLICITADA, VALOR_BRUTO]
+    situacoes_esperadas: ["Aberto", "Fatur. Parcial", "Faturado", "Fatur. + Canc.", "Bloqueado", "Cancelado"]
+
+  estrutura:                        # de-para de pessoas e visões (docs/DePara_Estrutura_Rota_MODELO.xlsx preenchido) — P-01
+    arquivo: Bases/Estrutura/DePara_Estrutura_Rota.xlsx
+    obrigatorio: false              # false enquanto o de-para oficial não chega (ausência = aviso); true = ausência aborta
+    aba_executivos: Executivos
+    aba_visoes: Visoes
+
+validacao:
+  tolerancia_reconciliacao: 0.05    # diferença absoluta aceita entre a soma das linhas e o rodapé da fonte
+  base_velha_horas: 36              # aviso quando o arquivo mais novo de check-ins/pedidos é mais antigo que isto (R-03)

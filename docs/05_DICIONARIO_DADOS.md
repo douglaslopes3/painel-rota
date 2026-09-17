@@ -1,0 +1,64 @@
+# 05 · Dicionário de dados — camada staging
+
+Um Parquet (zstd) por arquivo de origem em `data/rota/staging/<arquivo>.<hash>.parquet`, com um JSON ao lado (contagens e
+gabarito). O mapa "coluna na origem → coluna no staging" vive em `config/config.yaml → fontes.*.colunas`. A camada
+curada (fatos e dimensões) entra na Fase 2 e será documentada em `06_MODELO.md`.
+
+Tratamentos comuns: texto com trim e espaços colapsados; `COD_CLIENTE` só dígitos, sem zeros à esquerda (as três bases
+casam por ele); números no formato brasileiro (ponto é sempre milhar); `ANO_MES` = `AAAA-MM` tirado do CONTEÚDO.
+
+## Rota planejada (`rota_mensal.py`)
+
+| Coluna | Tipo | Origem | Observação |
+|---|---|---|---|
+| ANO_MES | texto | derivada de DATA_ROTA | um arquivo = um mês (senão aborta) |
+| SUPERVISOR | texto | `Supervisor` | como na planilha (primeiro nome) |
+| EXECUTIVO | texto, maiúscula | `Executivo` | inclui `[VAGO]` |
+| COD_CLIENTE | texto | `Cód. cliente` | único no arquivo (senão aborta) |
+| CANAL | texto, maiúscula | `canal` | PRESENCIAL · TELEFONE (valor novo = aviso) |
+| DATA_ROTA | data | coluna `Datas Rota <mês>` | localizada por padrão `^DATAS? ROTA`; nula aborta |
+| CIDADE | texto, maiúscula | `cidade` | |
+| NET_SALES_25 · NET_SALES_26 | decimal | `Net Sales 25/26` | histórico anual por cliente; há zeros e negativos na origem, mantidos |
+| FREQ_25 · FREQ_26 | inteiro | `Frequência anual 2025/2026` | de visita ou de compra? (P-07) |
+| VOLUME_25 · VOLUME_26 | decimal | `Volume 25/26` | unidade não declarada |
+| ARQUIVO_ORIGEM | texto | — | linhagem |
+
+## Check-ins (`checkins.py`) — evento bruto
+
+| Coluna | Tipo | Origem | Observação |
+|---|---|---|---|
+| ANO_MES · DATA | texto · data | derivadas de DATA_HORA | |
+| DATA_HORA | data-hora | `DATA EVENTO` | `dd/mm/aaaa hh:mm:ss`; inválida aborta |
+| LOGIN | texto, maiúscula | `USUÁRIO` | logins de `logins_ignorados` saem, contados |
+| NOME_USUARIO | texto | `NOME USUÁRIO` | dado pessoal |
+| COD_CLIENTE | texto | `CÓDIGO CLIENTE` | |
+| NOME_CLIENTE · CIDADE · UF | texto, maiúscula | `NOME CLIENTE` · `CIDADE CLIENTE` · `ESTADO` | |
+| EVENTO | texto | `EVENTO TIME LINE` | CHECKIN · CHECKOUT (outro valor aborta) |
+| ARQUIVO_ORIGEM | texto | — | |
+
+**Fora do staging** (minimização): `ENDEREÇO CLIENTE`, `DESCRIÇÃO TIMELINE`, `LATITUDE`, `LONGITUDE`. A deduplicação em
+visita (1 por cliente × dia) e o pareamento check-in/check-out são regra de negócio da Fase 2 — o staging guarda o evento.
+
+## Pedidos (`pedidos.py`)
+
+| Coluna | Tipo | Origem | Observação |
+|---|---|---|---|
+| ANO_MES | texto | derivada de DATA_EMISSAO | |
+| PEDIDO | texto | `Pedido` | único (repetido aborta, inclusive entre arquivos) |
+| COD_CLIENTE · NOME_CLIENTE | texto | `Código` · `Cliente` | |
+| DATA_EMISSAO · DATA_ENTREGA_ESTIMADA · DATA_FATURAMENTO | data | idem | faturamento só preenchido em Faturado / Parcial / Fatur.+Canc. |
+| SITUACAO | texto | `Situação` | Aberto · Fatur. Parcial · Faturado · Fatur. + Canc. · Bloqueado · Cancelado (valor novo = aviso) |
+| VALOR_PEDIDO | decimal | `Valor total do pedido` | reconciliado com o rodapé |
+| QTD_SOLICITADA | decimal | `Quantidade solicitada` | reconciliado; unidade não declarada (P-02) |
+| VALOR_BRUTO · VALOR_DESCONTO | decimal | `Valor total bruto` · `Valor desconto` | bruto reconciliado; bruto − desconto ≠ valor do pedido em 155 linhas (Bloqueado/Cancelado na maioria) |
+| REPRESENTANTE · CIDADE · UF | texto | idem | `REPRESENTANTE` não identifica o executivo |
+| ARQUIVO_ORIGEM | texto | — | |
+
+**Fora do staging:** `Ordem de compra`, `Sit. Embarque`, `Nota fiscal`, `Cliente CNPJ` (17 são CPF), `Desconto médio`,
+`Preço médio liquido`.
+
+## Estrutura (`estrutura.py`)
+
+Duas abas empilhadas num Parquet (coluna `ABA`). Executivos: SUPERVISOR, EXECUTIVO, LOGIN_MERCANET, ATIVO, DESDE, ATE.
+Visões: VISAO, NIVEL, SUPERVISORES (separados por `;`), USUARIO_NOME, PASTA_USUARIO, ATIVO. A linha de exemplo do modelo
+é descartada. Nada é inferido: login vazio fica vazio e vira pendência listada no log.

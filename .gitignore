@@ -1,0 +1,32 @@
+# Dados — nunca versionados (volume e confidencialidade: clientes, funcionários, valores)
+Bases/
+bases/
+data/
+
+# Material de referência com dados reais (protótipo 2 embute a base) e transcrições de reunião
+Painel Referência/
+Transcrições/
+
+# De-para: só o MODELO (para preencher) é versionado; as versões preenchidas e devolvidas não.
+# Atenção: o modelo já traz nomes de executivos e logins sugeridos — este repositório é LOCAL; não publicar em remoto sem revisar.
+docs/DePara_Estrutura_Rota_*.xlsx
+!docs/DePara_Estrutura_Rota_MODELO.xlsx
+
+# Credenciais
+*.env
+.env
+secrets*
+credenciais*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Sistema
+Thumbs.db
+desktop.ini
+~$*
+*.tmp
