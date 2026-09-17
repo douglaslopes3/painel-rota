@@ -34,6 +34,7 @@ Decisões do Douglas (17/09/2026, Fase 0), salvo indicação. O porquê e as alt
 | D-25 | 17/09 | **"Com pedido" = pedido no mês** (fecha a P-13): a loja conta se tem pedido válido no mês até a data; "contato" e "visita + pedido" usam visita em qualquer dia do mês até a data — a mesma lógica da aderência (D-03). `regras.pedido.criterio: mes`. A regra da janela (dia da rota + 1) segue calculada na LOJA_MES e é a usada na reconciliação com o protótipo 2. |
 | D-26 | 17/09 | Tela da Fase 3 aprovada: layout do Diário Rota + seletor de dia + blocos dia · semana · mês + tabela/gráfico por vendedor (por supervisor nas visões de gerente e head) + lista de lojas do dia. **Valor de pedido não vai para o painel** (D-04): só a quantidade solicitada, com o rótulo do config. |
 | D-27 | 17/09 | O navegador não calcula indicador: `rota/painel.py` entrega os números de `metricas.kpis` por vendedor × dia de rota × escopo e o JavaScript só soma vendedores. O carimbo do painel é a data do arquivo de base mais recente (não o relógio): mesma base → mesmo HTML byte a byte (MD5 conferido em duas execuções). |
+| D-28 | 17/09 | **A publicação é a última etapa do projeto.** Nada vai para `Painéis Comerciais\` enquanto houver pendência aberta que afete número ou leitura, e antes da validação com o time (Gui, supervisores, head). Até lá os painéis são gerados só em pasta local (`%LOCALAPPDATA%\Dori\ROTA\painel`) e circulam para revisão por envio direto do Douglas. |
 
 ## Pendências
 
