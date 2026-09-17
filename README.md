@@ -4,18 +4,17 @@ Painel diário de execução de rota — visitas planejadas × check-ins × pedi
 Atacado. Mesmo padrão do Scorecard DN e do Dashboard Gerencial: **bases → ETL Python → Parquet → HTML offline**, um
 arquivo por usuário, publicado nas pastas de `Painéis Comerciais`.
 
-Estado em **17/09/2026**: **Fases 1 e 2 concluídas** — as bases são lidas e reconciliadas com a fonte, viram o modelo
-(fatos, dimensões, LOJA_MES, DIARIO_VENDEDOR) e os indicadores fecham com o protótipo 2. Painel (Fase 3) e publicação dos
-9 painéis (Fase 4) são os próximos passos (`docs/Fase0_Diagnostico_Roadmap.html`, Etapa 8).
+Estado em **17/09/2026**: **Fases 1, 2 e 3 concluídas** (a Fase 3 gera o painel do head em pasta local, para revisão; nada é publicado) — as bases são lidas e reconciliadas com a fonte, viram o modelo
+(fatos, dimensões, LOJA_MES, DIARIO_VENDEDOR) e os indicadores fecham com o protótipo 2. A geração e a publicação dos 9 painéis (Fase 4) são o próximo passo (`docs/Fase0_Diagnostico_Roadmap.html`, Etapa 8).
 
 ## Como rodar
 
 ```powershell
 cd "C:\Users\dldsouza\OneDrive - Dori Alimentos S.A\Documentos\Painéis - Alavancas\ROTA"
-python run_rota.py            # verificar -> ingerir -> modelar -> calcular -> gravar curated + qualidade   (~1,5 s)
+python run_rota.py            # verificar -> ingerir -> modelar -> calcular -> painel (pasta local) -> gravar curated + qualidade   (~5 s)
 python run_rota.py --forcar   # relê todas as bases ignorando o cache
 python tests/test_leitores.py # 21 testes dos leitores (não precisa de pytest)
-python tests/test_regras.py   # 12 testes das regras de visita, pedido e indicadores
+python tests/test_regras.py   # 14 testes das regras de visita, pedido e indicadores
 python ferramentas/reconciliar_prototipo2.py   # aceite da Fase 2 (só vale com as bases de 16/09)
 ```
 
@@ -44,15 +43,22 @@ Regras de operação:
 ```
 bases/                 origem (somente leitura)
 config/config.yaml     caminhos, colunas de cada base, logins ignorados, tolerâncias — nenhuma regra mora no código
-rota/                  extract/ (leitores) · transform/ (calendario, visitas, modelo) · load/parquet · metricas · qualidade · manifesto · pipeline
+rota/                  extract/ (leitores) · transform/ (calendario, visitas, modelo) · load/parquet · metricas · painel · render · qualidade · manifesto · pipeline
 ferramentas/           fora do pipeline: reconciliação com o protótipo 2
 data/rota/             staging/ (Parquet por arquivo) · curated/ (modelo + manifesto) · quality/ (relatório + CSVs) · logs/   (não versionado)
 docs/                  Fase 0, inventário, dicionário, decisões, modelo do de-para
 tests/                 testes dos leitores com arquivos sintéticos
-template/              (Fase 3)
+template/template.html interface do painel, editada à mão (marcador de dados único; sem recurso externo)
 Painel Referência/ · Transcrições/   material de referência, não alterado
 run_rota.py · requirements.txt
 ```
+
+## O painel
+
+Gerado em `%LOCALAPPDATA%\Dori\ROTA\painel\Painel_Rota_<nível>_<rótulo>.html` (fora do OneDrive), ~100 KB, autocontido, abre por
+duplo clique no Chrome ou Edge. Cabeçalho (visão, dia do ciclo, dados até) · aviso de vendedores sem check-in · seletor do dia de
+rota e filtro por supervisor · cards **No dia · Semana · Mês** · tabela/gráfico por vendedor (por supervisor nas visões de gerente e
+head) · lista de lojas do roteiro do dia com status. Depois de editar o template, basta rodar o pipeline de novo.
 
 ## Documentação
 

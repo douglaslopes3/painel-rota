@@ -6,7 +6,8 @@ reconciliação com a fonte) -> 2 modelar (staging -> fatos e dimensões) ->
 3 calcular (indicadores + conferências de soma) -> gravar a camada curada, o
 relatório de qualidade, o resumo e o manifesto. NADA é gravado na camada curada
 antes de todas as validações passarem.
-As etapas 4 renderizar, 5 validar o painel e 6 publicar entram nas Fases 3 e 4.
+4 renderizar + 5 validar o painel (Fase 3: a visão do head, em pasta local, sem publicar). A geração das 9 visões e a
+etapa 6 publicar entram na Fase 4.
 
 Qualquer falha termina em `PIPELINE ABORTADO`, exit code 1.
 """
@@ -16,7 +17,7 @@ import json
 import time
 from datetime import datetime
 
-from . import manifesto, metricas, qualidade
+from . import manifesto, metricas, painel, qualidade, render
 from .extract import checkins, comum, estrutura, pedidos, rota_mensal
 from .load import parquet
 from .transform import modelo
@@ -111,37 +112,63 @@ def _modelar(rota, ci, pd_, hier) -> dict:
 
 def _calcular(m: dict) -> dict:
     L.etapa_inicio("3 · CALCULAR (indicadores)")
-    fv = m["FATO_VISITA"]
+    fv, fp = m["FATO_VISITA"], m["FATO_PEDIDO"]
     lojas = metricas.loja_mes(m)
-    diario = metricas.diario_vendedor(lojas, fv)
+    diario = metricas.diario_vendedor(lojas, fv, fp)
     ate = min(fv["DATA"].max(), m["FATO_PEDIDO"]["DATA_EMISSAO"].max())
     mes = ate.strftime("%Y-%m")
     dias_mes = [d for d in m["DIM_CALENDARIO"].query("ANO_MES == @mes")["DATA"] if d <= ate]
-    total = metricas.kpis(lojas[lojas["ANO_MES"] == mes], fv, dias_mes).iloc[0]
+    total = metricas.kpis(lojas[lojas["ANO_MES"] == mes], fv, fp, dias_mes).iloc[0]
     # conferências de soma: o total tem de ser a soma das partes, em qualquer corte da hierarquia
     soma_cols = ["ROTEIRO", "VISITADAS_NO_DIA", "COM_PEDIDO", "VISITA_E_PEDIDO", "SEM_CONTATO", "FORA_DO_ROTEIRO", "TEL_ROTEIRO", "TEL_COM_PEDIDO"]
     for por in ("COD_VENDEDOR", "N3_COD", "N2_COD", "N1_COD"):
         if lojas[por].isna().any():
             L.log(f"conferencia de soma por {por} pulada: ha lojas sem {por} (hierarquia incompleta)", "aviso")
             continue
-        k = metricas.kpis(lojas[lojas["ANO_MES"] == mes], fv, dias_mes, por=por)
+        k = metricas.kpis(lojas[lojas["ANO_MES"] == mes], fv, fp, dias_mes, por=por)
         for c in soma_cols:
             if int(k[c].sum()) != int(total[c]):
                 L.abortar(f"soma por {por} nao fecha com o total em {c}: {int(k[c].sum())} x {int(total[c])}.")
         if abs(k["VALOR_PEDIDOS"].sum() - total["VALOR_PEDIDOS"]) > 0.01:
             L.abortar(f"soma por {por} nao fecha com o total em VALOR_PEDIDOS.")
     dia_mes = diario[(diario["DATA"].dt.strftime("%Y-%m") == mes) & (diario["DATA"] <= ate)]
-    for c in ("ROTEIRO", "VISITADAS_NO_DIA", "COM_PEDIDO"):
+    for c in ("ROTEIRO", "VISITADAS_NO_DIA"):                  # COM_PEDIDO no criterio "mes" depende da data final: nao se soma dia a dia
         if int(dia_mes[c].sum()) != int(total[c]):
             L.abortar(f"DIARIO_VENDEDOR nao fecha com o total do mes em {c}: {int(dia_mes[c].sum())} x {int(total[c])}.")
     L.log("somas por vendedor, supervisor, gerente e head = total; diario = mes", "ok")
     ad = metricas.aderencia_mes(lojas, fv, ate).iloc[0]
+    if CFG["regras"]["pedido"]["criterio"] == "mes" and int(ad["VISITADAS_NO_MES"]) != int(total["VISITADAS_ATE_A_DATA"]):
+        L.abortar(f"aderencia do mes ({int(ad['VISITADAS_NO_MES'])}) nao fecha com kpis.VISITADAS_ATE_A_DATA ({int(total['VISITADAS_ATE_A_DATA'])}).")
     L.log(f"MES ATE {ate:%d/%m/%Y} | roteiro vencido {int(total['ROTEIRO']):,} | visitadas no dia da rota {int(total['VISITADAS_NO_DIA']):,} "
           f"({total['PCT_VISITA_NO_DIA']:.1f}%) | fora do roteiro {int(total['FORA_DO_ROTEIRO']):,} | ADERENCIA NO MES (D-03) "
-          f"{int(ad['VISITADAS_NO_MES']):,}/{int(ad['ROTEIRO_VENCIDO']):,} = {ad['PCT_ADERENCIA_MES']:.1f}% | com pedido {int(total['COM_PEDIDO']):,} | "
+          f"{int(ad['VISITADAS_NO_MES']):,}/{int(ad['ROTEIRO_VENCIDO']):,} = {ad['PCT_ADERENCIA_MES']:.1f}% | com pedido ({CFG['regras']['pedido']['criterio']}) {int(total['COM_PEDIDO']):,} | "
           f"telefone com pedido {int(total['TEL_COM_PEDIDO']):,}/{int(total['TEL_ROTEIRO']):,}", "ok")
     L.etapa_fim("ok")
     return {"LOJA_MES": lojas, "DIARIO_VENDEDOR": diario, "_ate": ate, "_total": total.to_dict(), "_aderencia": ad.to_dict()}
+
+
+def _painel(m: dict, calc: dict, hier) -> dict:
+    L.etapa_inicio("4-5 · RENDERIZAR E VALIDAR O PAINEL")
+    if hier is None:
+        L.log("sem hierarquia nao ha visoes: painel nao gerado", "aviso")
+        L.etapa_fim("pulada")
+        return {}
+    # carimbo do painel = arquivo de base mais recente (nao o relogio): mesma base -> mesmo HTML, byte a byte
+    mais_novo = max(a.stat().st_mtime for f in ("checkins", "pedidos") for a in comum.arquivos(f))
+    atualizado_em = datetime.fromtimestamp(mais_novo).strftime("%d/%m/%Y %H:%M")
+    visoes = estrutura.visoes(hier)
+    alvo_nivel = CFG["painel"].get("niveis_gerados") or ["N1", "N2", "N3"]
+    gerados = {}
+    for v in visoes[visoes["NIVEL"].isin(alvo_nivel)].to_dict("records"):
+        J = painel.montar(m, calc["LOJA_MES"], v, calc["_ate"], atualizado_em)
+        painel.validar(J, calc["LOJA_MES"], v)
+        nome = f"Painel_Rota_{v['NIVEL']}_{render.slug(v['ROTULO'])}.html"
+        arq = render.gerar(J, nome)
+        gerados[v["ROTULO"]] = {"arquivo": str(arq), "kb": round(arq.stat().st_size / 1024, 1), "lojas": len(J["lojas"]), "vendedores": len(J["vend"])}
+        L.log(f"{v['NIVEL']} {v['ROTULO']:<46} {len(J['vend']):>2} vendedores {len(J['lojas']):>5,} lojas -> {arq.name} ({arq.stat().st_size / 1024:,.0f} KB)", "ok")
+    L.log(f"paineis em {render.PASTA_PAINEL} (pasta local, fora do OneDrive; nada foi publicado)")
+    L.etapa_fim("ok", paineis=len(gerados))
+    return gerados
 
 
 def executar(forcar: bool = False) -> int:
@@ -153,6 +180,7 @@ def executar(forcar: bool = False) -> int:
     rota, ci, pd_, hier = info.pop("_dados")
     m = _modelar(rota, ci, pd_, hier)
     calc = _calcular(m)
+    gerados = _painel(m, calc, hier)
 
     L.etapa_inicio("GRAVAR (camada curada + qualidade)")
     for nome, df in {**m, "LOJA_MES": calc["LOJA_MES"], "DIARIO_VENDEDOR": calc["DIARIO_VENDEDOR"]}.items():
@@ -163,6 +191,7 @@ def executar(forcar: bool = False) -> int:
         parquet.salvar(vis.assign(N3_CODS=vis["N3_CODS"].map(";".join), EXECUCAO_ID=L.EXECUCAO_ID), "DIM_VISAO")
     info["qualidade"] = qualidade.gerar(m, calc["LOJA_MES"], L.contagens(), info["problemas_depara"])
     info["dados_ate"] = str(calc["_ate"].date())
+    info["paineis"] = gerados
     info["total_mes"] = {k: (round(float(v), 2) if v == v else None) for k, v in calc["_total"].items() if k != "GRUPO"}
     info["aderencia_mes"] = {k: (round(float(v), 2) if v == v else None) for k, v in calc["_aderencia"].items() if k != "GRUPO"}
     L.etapa_fim("ok")

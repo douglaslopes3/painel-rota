@@ -51,7 +51,7 @@ def construir(rota: pd.DataFrame, checkins: pd.DataFrame, pedidos: pd.DataFrame,
     cal = calendario.gerar(rota)
 
     # ---------------------------------------------------------------- FATO_ROTA_PLANEJADA
-    fr = _ligar_hierarquia(rota.copy(), hier)
+    fr = _ligar_hierarquia(rota.drop(columns=["NOME_CLIENTE"], errors="ignore"), hier)
     fr["CONTROLA_VISITA"] = ~fr["CANAL"].isin(regras["canais_sem_controle_de_visita"])
     dono = fr[["ANO_MES", "COD_CLIENTE", "COD_VENDEDOR", "DATA_ROTA", "CONTROLA_VISITA"]]
 
@@ -79,7 +79,9 @@ def construir(rota: pd.DataFrame, checkins: pd.DataFrame, pedidos: pd.DataFrame,
     fp["CONTROLA_VISITA"] = fp["CONTROLA_VISITA"].astype("boolean")
 
     # ---------------------------------------------------------------- dimensões
-    nomes = pd.concat([pedidos[["COD_CLIENTE", "NOME_CLIENTE", "DATA_EMISSAO"]].rename(columns={"DATA_EMISSAO": "QUANDO"}),
+    da_rota = (rota[["COD_CLIENTE", "NOME_CLIENTE", "DATA_ROTA"]].rename(columns={"DATA_ROTA": "QUANDO"}).assign(QUANDO=lambda d: d["QUANDO"] + pd.Timedelta(days=3650))
+               if "NOME_CLIENTE" in rota.columns else pd.DataFrame(columns=["COD_CLIENTE", "NOME_CLIENTE", "QUANDO"]))       # o nome da rota, quando existe, vence
+    nomes = pd.concat([da_rota, pedidos[["COD_CLIENTE", "NOME_CLIENTE", "DATA_EMISSAO"]].rename(columns={"DATA_EMISSAO": "QUANDO"}),
                        checkins[["COD_CLIENTE", "NOME_CLIENTE", "DATA_HORA"]].rename(columns={"DATA_HORA": "QUANDO"})])
     nomes = nomes.dropna(subset=["NOME_CLIENTE"]).sort_values("QUANDO").drop_duplicates("COD_CLIENTE", keep="last")[["COD_CLIENTE", "NOME_CLIENTE"]]
     dc = pd.DataFrame({"COD_CLIENTE": sorted(set(rota["COD_CLIENTE"]) | set(checkins["COD_CLIENTE"]) | set(pedidos["COD_CLIENTE"]))})

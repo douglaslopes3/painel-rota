@@ -41,15 +41,18 @@ def ler_arquivo(arq: Path) -> tuple[pd.DataFrame, dict]:
     df["DATA_ROTA"] = pd.to_datetime(bruto[col_data[0]], errors="coerce").dt.normalize()
 
     # código do vendedor (D-17): opcional na planilha; presente, tem de vir em TODAS as linhas
-    df["COD_VENDEDOR"] = pd.NA
+    df["COD_VENDEDOR"], df["NOME_CLIENTE"] = pd.NA, pd.NA
     for orig, novo in (cfg.get("colunas_opcionais") or {}).items():
         achada = [c for c in bruto.columns if chave_texto(c) == chave_texto(orig)]
-        if achada:
+        if achada and novo == "NOME_CLIENTE":                     # P-14: razão social na rota (a maioria das lojas não tem nome nas outras bases)
+            df[novo] = texto(bruto[achada[0]])
+        elif achada:
             df[novo] = digitos(bruto[achada[0]])
             if df[novo].isna().any():
                 abortar(f"{arq.name}: coluna '{achada[0]}' com {int(df[novo].isna().sum())} linha(s) vazia(s) ou nao numericas "
                         f"(linhas da planilha: {[int(i) + 2 for i in df.index[df[novo].isna()][:5]]}).")
     df["COD_VENDEDOR"] = df["COD_VENDEDOR"].astype("string")
+    df["NOME_CLIENTE"] = df["NOME_CLIENTE"].astype("string")
 
     df["COD_CLIENTE"] = digitos(df["COD_CLIENTE"])
     for c in ("SUPERVISOR", "EXECUTIVO", "CANAL", "CIDADE"):
@@ -82,7 +85,7 @@ def ler_arquivo(arq: Path) -> tuple[pd.DataFrame, dict]:
             abortar(f"{arq.name}: codigo(s) de vendedor com mais de um executivo/supervisor: {sorted(conf[conf > 1].index)}.")
 
     df["ARQUIVO_ORIGEM"] = arq.name
-    ordem = ["ANO_MES", "SUPERVISOR", "COD_VENDEDOR", "EXECUTIVO", "COD_CLIENTE", "CANAL", "DATA_ROTA", "CIDADE", *_NUMERICAS, "ARQUIVO_ORIGEM"]
+    ordem = ["ANO_MES", "SUPERVISOR", "COD_VENDEDOR", "EXECUTIVO", "COD_CLIENTE", "NOME_CLIENTE", "CANAL", "DATA_ROTA", "CIDADE", *_NUMERICAS, "ARQUIVO_ORIGEM"]
     extra = {"mes": meses[0], "coluna_data": str(col_data[0]), "linhas": len(df), "com_codigo_vendedor": bool(df["COD_VENDEDOR"].notna().any()),
              "executivos": int(df["EXECUTIVO"].nunique()), "supervisores": int(df["SUPERVISOR"].nunique()),
              "datas_de_rota": int(df["DATA_ROTA"].nunique())}

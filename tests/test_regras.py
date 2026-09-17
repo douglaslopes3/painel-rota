@@ -21,7 +21,7 @@ for _f in (sys.stdout, sys.stderr):
     except (AttributeError, OSError):
         pass
 
-from rota import metricas  # noqa: E402
+from rota import metricas, painel  # noqa: E402
 from rota.transform import calendario, modelo, visitas  # noqa: E402
 
 T = pd.Timestamp
@@ -61,7 +61,7 @@ def _cenario():
 
 
 M, L = _cenario()
-FV = M["FATO_VISITA"]
+FV, FP = M["FATO_VISITA"], M["FATO_PEDIDO"]
 loja = lambda c: L[L.COD_CLIENTE == c].iloc[0]          # noqa: E731
 
 
@@ -97,17 +97,27 @@ def test_cancelado_fica_fora_e_pedido_fora_da_janela_so_entra_no_mes():
 
 
 def test_telefone_nao_entra_no_roteiro_de_visita_so_no_de_pedido():
-    k = metricas.kpis(L, FV, pd.to_datetime(["2026-10-05"])).iloc[0]
+    k = metricas.kpis(L, FV, FP, pd.to_datetime(["2026-10-05"]), criterio="janela").iloc[0]
     assert (k.ROTEIRO, k.VISITADAS_NO_DIA, k.COM_PEDIDO, k.SEM_CONTATO) == (2, 1, 1, 1)             # lojas 1 e 2
     assert (k.TEL_ROTEIRO, k.TEL_COM_PEDIDO, k.TEL_VALOR_PEDIDOS) == (1, 1, 30.0)                     # loja 5: pedido em 06/10, na janela
 
 
 def test_kpis_da_semana_e_a_soma_das_partes():
     dias = pd.to_datetime(["2026-10-05", "2026-10-06", "2026-10-07"])
-    tot = metricas.kpis(L, FV, dias).iloc[0]
+    tot = metricas.kpis(L, FV, FP, dias, criterio="janela").iloc[0]
     assert (tot.ROTEIRO, tot.VISITADAS_NO_DIA, tot.FORA_DO_ROTEIRO, tot.TOTAL_VISITADAS, tot.NAO_ATENDIDAS) == (3, 2, 1, 3, 1)
-    por = metricas.kpis(L, FV, dias, por="COD_VENDEDOR")
+    por = metricas.kpis(L, FV, FP, dias, por="COD_VENDEDOR", criterio="janela")
     assert por.ROTEIRO.sum() == tot.ROTEIRO and por.TEL_ROTEIRO.sum() == tot.TEL_ROTEIRO and set(por.COD_VENDEDOR) == {"101", "136"}
+
+
+def test_criterio_mes_pedido_e_visita_valem_em_qualquer_dia_ate_a_data():
+    """D-25. Semana 05..09/10: lojas 1, 2, 3 e 4 no roteiro. Até 09/10 só a loja 1 tem pedido válido (05 e 06/10); a 4 pede em 12/10."""
+    k9 = metricas.kpis(L, FV, FP, pd.date_range("2026-10-05", "2026-10-09"), criterio="mes").iloc[0]
+    assert (k9.ROTEIRO, k9.COM_PEDIDO, k9.VALOR_PEDIDOS, k9.VISITADAS_ATE_A_DATA, k9.VISITA_E_PEDIDO, k9.SEM_CONTATO) == (4, 1, 150.0, 3, 1, 1)
+    k12 = metricas.kpis(L, FV, FP, pd.date_range("2026-10-01", "2026-10-12"), criterio="mes").iloc[0]      # o pedido de 12/10 (fora da janela) agora conta
+    assert (k12.COM_PEDIDO, k12.VALOR_PEDIDOS, k12.SEM_CONTATO, k12.TEL_COM_PEDIDO) == (2, 220.0, 0, 1)
+    a = metricas.aderencia_mes(L, FV, "2026-10-12").iloc[0]
+    assert a.VISITADAS_NO_MES == k12.VISITADAS_ATE_A_DATA == 3 and k12.PCT_ADERENCIA == 75.0
 
 
 def test_aderencia_no_mes_conta_visita_em_qualquer_dia_sobre_o_roteiro_vencido():
@@ -125,8 +135,26 @@ def test_cliente_fora_da_rota_fica_na_fato_marcado_e_nao_entra_em_indicador():
 def test_jornada_usa_o_login_e_o_diario_fecha_com_os_kpis():
     j = metricas.jornada_dia(FV); d5 = j[j.DATA == T("2026-10-05")].iloc[0]
     assert d5.COD_VENDEDOR == "101" and d5.PRIMEIRA_ENTRADA == T("2026-10-05 09:00") and d5.ULTIMA_SAIDA == T("2026-10-05 15:05") and d5.TEMPO_MEDIO_LOJA_MIN == 30.0
-    di = metricas.diario_vendedor(L, FV)
+    di = metricas.diario_vendedor(L, FV, FP)
     assert di.ROTEIRO.sum() == 4 and di.TEL_ROTEIRO.sum() == 1 and di.VISITADAS_NO_DIA.sum() == 2
+
+
+def test_painel_so_leva_a_visao_e_os_cards_fecham_com_a_lista():
+    """Recorte físico (D-05): o painel do supervisor 2110 não contém a loja 5 (supervisor 2310) nem o vendedor 136."""
+    v = {"NIVEL": "N3", "COD": "2110", "ROTULO": "2110 - S - MARCO", "NOME": "MARCO", "N3_CODS": ["2110"]}
+    M["DIM_VENDEDOR"]["N3_NOME"] = ["MARCO", "ANDERSON"]; M["DIM_VENDEDOR"]["N4_NOME"] = ["FULANO", "HIBRIDO"]
+    J = painel.montar(M, L, v, T("2026-10-07"), "07/10/2026 08:00")
+    painel.validar(J, L, v)                                                   # aborta (SystemExit) se cards != lista ou se houver vazamento
+    assert {l[0] for l in J["lojas"]} == {"1", "2", "3", "4"} and [x["cod"] for x in J["vend"]] == ["101"] and len(J["sups"]) == 1
+    assert [d["lab"] for d in J["dias"]] == ["05/10", "06/10", "09/10"] and [d["futuro"] for d in J["dias"]] == [False, False, True]
+    C = {c: i for i, c in enumerate(J["cols"])}
+    mes_0610 = J["agg"]["mes"][1][0]                                          # mês até 06/10, vendedor 101
+    assert (mes_0610[C["ROTEIRO"]], mes_0610[C["VISITADAS_NO_DIA"]], mes_0610[C["COM_PEDIDO"]], mes_0610[C["QTD_SOLICITADA"]]) == (3, 2, 1, 15.0)
+    assert "VALOR_PEDIDOS" not in J["cols"] and J["horarios"][0][0] == ["09:00", "15:05"]      # D-04: valor não vai para o painel
+    todos = {"NIVEL": "N1", "COD": "20", "ROTULO": "20 - ATACADO - HEAD", "NOME": "HEAD", "N3_CODS": ["2110", "2310"]}
+    J1 = painel.montar(M, L, todos, T("2026-10-07"), "x"); painel.validar(J1, L, todos)
+    i136 = [x["cod"] for x in J1["vend"]].index("136")                        # a ordem é por supervisor e nome: achar o híbrido pelo código
+    assert len(J1["lojas"]) == 5 and len(J1["sups"]) == 2 and J1["agg"]["dia"][0][i136][C["TEL_ROTEIRO"]] == 1
 
 
 def test_calendario_ciclo_vem_das_datas_da_rota():

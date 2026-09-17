@@ -13,10 +13,10 @@ ROTA que entra**: dia = [d]; semana = da segunda-feira até d; mês = do dia 1 a
 | **Total de lojas visitadas** | Visitadas no dia da rota + Fora do roteiro | — |
 | **% visita no dia** | Visitadas no dia da rota ÷ Roteiro | — |
 | **Aderência no mês (D-03)** | das lojas com roteiro **já vencido** até a data, as que tiveram ≥ 1 visita no mês, em qualquer dia ÷ roteiro vencido | rota + check-ins |
-| **Com pedido** | lojas do roteiro com pedido válido emitido na DATA_ROTA ou até 1 dia corrido depois | pedidos |
-| **Visita + pedido** · **Sem contato** | lojas com as duas coisas · com nenhuma, no dia da rota | — |
-| **% positivação do roteiro** · **% visita com pedido** | Com pedido ÷ Roteiro · Visita + pedido ÷ Visitadas no dia | — |
-| **Valor dos pedidos** | Σ `Valor total do pedido` dos pedidos válidos na janela (todos os pedidos da loja na janela) | pedidos |
+| **Com pedido (D-25)** | lojas do roteiro com pedido válido **no mês, até o último dia do período** (critério `mes`). Critério `janela` (protótipo 2): pedido na DATA_ROTA ou até 1 dia corrido depois | pedidos |
+| **Visita + pedido** · **Sem contato** | critério `mes`: visita em qualquer dia do mês até a data E pedido no mês · nem uma nem outro. Critério `janela`: no dia da rota | — |
+| **% positivação** · **% aderência** | Com pedido ÷ Roteiro · Visitadas até a data (qualquer dia do mês) ÷ Roteiro — no escopo mês é a Aderência no mês (D-03) | — |
+| **Valor dos pedidos** | Σ `Valor total do pedido` dos pedidos válidos contados — fica na camada curada, **não vai para o painel** (D-04, D-26) | pedidos |
 | **Quantidade solicitada** ("volume", D-04) | Σ `Quantidade solicitada` dos mesmos pedidos — **unidade não declarada (P-02)** | pedidos |
 | **Telefone: roteiro / com pedido / valor** | as mesmas contas para as lojas TELEFONE, que não têm controle de visita | rota + pedidos |
 | **1ª entrada · Última saída** | menor check-in e maior check-out do dia, pelo LOGIN do vendedor | check-ins |
@@ -56,7 +56,7 @@ Minutos em loja e número de registros por visita: iguais ao protótipo em 100% 
 | Anderson Okada | 43 (+142 por telefone) | 0 | 0 | 0 (0,0%) — sem check-in | 0 (telefone: 2) |
 | **Total** | **1.368** | **292 (21,3%)** | **482** | **501 (36,6%)** | **42** |
 
-Ponto de atenção para o negócio (P-13): dos 548 pedidos válidos de clientes da rota, só **46** caem na janela "dia da rota
+Por que a D-25 trocou a janela pelo mês (era a P-13): dos 548 pedidos válidos de clientes da rota, só **46** caem na janela "dia da rota
 + 1 dia" — **502 ficam fora**. Das 1.368 lojas com roteiro vencido, 42 têm pedido na janela, mas **238 têm pedido no
 mês**. Com a visita acontecendo fora do dia planejado em 2 de cada 3 casos, "com pedido no dia da rota" mede pouco; a
 alternativa (pedido no mês, como a aderência) já está calculada na LOJA_MES.

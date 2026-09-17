@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from .utils.config import CFG
+
 STATUS = {3: "visita + pedido", 2: "so visita", 1: "so pedido", 0: "sem contato"}
 
 
@@ -43,20 +45,39 @@ def loja_mes(m: dict[str, pd.DataFrame]) -> pd.DataFrame:
     return L.merge(m["DIM_CLIENTE"][["COD_CLIENTE", "NOME_CLIENTE"]], on="COD_CLIENTE", how="left")
 
 
-def kpis(L: pd.DataFrame, fv: pd.DataFrame, dias, por: str | None = None) -> pd.DataFrame:
-    """Indicadores das lojas cuja DATA DE ROTA cai em `dias` (um dia, a semana até
-    o dia, o mês até o dia). `por` = coluna de agrupamento (COD_VENDEDOR, N3_COD…);
-    None devolve uma linha só, com o total."""
-    dias = set(pd.to_datetime(list(dias)))
-    L = L.assign(_G="TOTAL") if por is None else L.rename(columns={por: "_G"})
-    no_periodo = L[L["DATA_ROTA"].isin(dias)]
-    pres, tel = no_periodo[no_periodo["CONTROLA_VISITA"]], no_periodo[~no_periodo["CONTROLA_VISITA"]]
+def kpis(L: pd.DataFrame, fv: pd.DataFrame, fp: pd.DataFrame, dias, por: str | None = None, criterio: str | None = None) -> pd.DataFrame:
+    """Indicadores das lojas cuja DATA DE ROTA cai em `dias` (um dia, a semana até o dia, o mês até o dia).
+    `por` = coluna de agrupamento (COD_VENDEDOR, N3_COD…); None devolve uma linha só, com o total.
 
-    k = pres.groupby("_G").agg(ROTEIRO=("COD_CLIENTE", "size"), VISITADAS_NO_DIA=("VISITA_NO_DIA", "sum"), COM_PEDIDO=("PEDIDO_NA_JANELA", "sum"),
-                               VISITA_E_PEDIDO=("STATUS", lambda s: int((s == 3).sum())), SEM_CONTATO=("STATUS", lambda s: int((s == 0).sum())),
-                               VALOR_PEDIDOS=("VALOR_JANELA", "sum"), QTD_SOLICITADA=("QTD_JANELA", "sum"))
-    kt = tel.groupby("_G").agg(TEL_ROTEIRO=("COD_CLIENTE", "size"), TEL_COM_PEDIDO=("PEDIDO_NA_JANELA", "sum"),
-                               TEL_VALOR_PEDIDOS=("VALOR_JANELA", "sum"), TEL_QTD_SOLICITADA=("QTD_JANELA", "sum"))
+    `criterio` (padrão: `regras.pedido.criterio`, D-25) decide o que é "com pedido" e "contato":
+      mes    -> a loja tem pedido válido NO MÊS até o último dia do período; "visitada" = visita em qualquer dia do mês
+                até essa data (a mesma lógica da aderência, D-03);
+      janela -> regra do protótipo 2: pedido no dia da rota ou até N dias corridos depois; "visitada" = no dia da rota."""
+    criterio = criterio or CFG["regras"]["pedido"]["criterio"]
+    dias = pd.DatetimeIndex(pd.to_datetime(list(dias)))
+    ate = dias.max()
+    L = L.assign(_G="TOTAL") if por is None else L.rename(columns={por: "_G"})
+    P = L[L["DATA_ROTA"].isin(dias)].copy()
+
+    if criterio == "mes":
+        ped = fp[fp["NA_ROTA"] & fp["VALIDO"] & (fp["DATA_EMISSAO"] <= ate) & (fp["ANO_MES"] == ate.strftime("%Y-%m"))]
+        ped = ped.groupby(["ANO_MES", "COD_CLIENTE"]).agg(_VAL=("VALOR", "sum"), _QTD=("QTD_SOLICITADA", "sum")).reset_index()
+        P = P.merge(ped, on=["ANO_MES", "COD_CLIENTE"], how="left")
+        P["_PED"] = P["_VAL"].notna()
+        P["_VIS"] = (P["PRIMEIRA_VISITA"] <= ate) & P["CONTROLA_VISITA"]
+    elif criterio == "janela":
+        P["_PED"], P["_VAL"], P["_QTD"], P["_VIS"] = P["PEDIDO_NA_JANELA"], P["VALOR_JANELA"], P["QTD_JANELA"], P["VISITA_NO_DIA"]
+    else:
+        raise ValueError(f"regras.pedido.criterio invalido: {criterio!r} (use 'mes' ou 'janela')")
+    P[["_VAL", "_QTD"]] = P[["_VAL", "_QTD"]].fillna(0.0)
+    P["_VP"], P["_NADA"] = P["_VIS"] & P["_PED"], ~P["_VIS"] & ~P["_PED"]
+    pres, tel = P[P["CONTROLA_VISITA"]], P[~P["CONTROLA_VISITA"]]
+
+    k = pres.groupby("_G").agg(ROTEIRO=("COD_CLIENTE", "size"), VISITADAS_NO_DIA=("VISITA_NO_DIA", "sum"), VISITADAS_ATE_A_DATA=("_VIS", "sum"),
+                               COM_PEDIDO=("_PED", "sum"), VISITA_E_PEDIDO=("_VP", "sum"), SEM_CONTATO=("_NADA", "sum"),
+                               VALOR_PEDIDOS=("_VAL", "sum"), QTD_SOLICITADA=("_QTD", "sum"))
+    kt = tel.groupby("_G").agg(TEL_ROTEIRO=("COD_CLIENTE", "size"), TEL_COM_PEDIDO=("_PED", "sum"),
+                               TEL_VALOR_PEDIDOS=("_VAL", "sum"), TEL_QTD_SOLICITADA=("_QTD", "sum"))
     # fora do roteiro: loja (com controle de visita) visitada, dentro do período, num dia que NÃO é o da rota dela — conta 1 vez
     v = fv[fv["NA_ROTA"] & fv["CONTA_COMO_VISITA"] & ~fv["NO_DIA_DA_ROTA"] & fv["DATA"].isin(dias)]
     donos = L[L["CONTROLA_VISITA"]][["ANO_MES", "COD_CLIENTE", "_G"]]
@@ -69,8 +90,8 @@ def kpis(L: pd.DataFrame, fv: pd.DataFrame, dias, por: str | None = None) -> pd.
     out["NAO_ATENDIDAS"] = out["ROTEIRO"] - out["VISITADAS_NO_DIA"]
     out["TOTAL_VISITADAS"] = out["VISITADAS_NO_DIA"] + out["FORA_DO_ROTEIRO"]
     out["PCT_VISITA_NO_DIA"] = (100 * out["VISITADAS_NO_DIA"] / out["ROTEIRO"]).where(out["ROTEIRO"] > 0)
-    out["PCT_POSITIVACAO_ROTEIRO"] = (100 * out["COM_PEDIDO"] / out["ROTEIRO"]).where(out["ROTEIRO"] > 0)
-    out["PCT_VISITA_COM_PEDIDO"] = (100 * out["VISITA_E_PEDIDO"] / out["VISITADAS_NO_DIA"]).where(out["VISITADAS_NO_DIA"] > 0)
+    out["PCT_ADERENCIA"] = (100 * out["VISITADAS_ATE_A_DATA"] / out["ROTEIRO"]).where(out["ROTEIRO"] > 0)
+    out["PCT_POSITIVACAO"] = (100 * out["COM_PEDIDO"] / out["ROTEIRO"]).where(out["ROTEIRO"] > 0)
     return out.rename_axis(por or "GRUPO").reset_index()
 
 
@@ -88,6 +109,13 @@ def aderencia_mes(L: pd.DataFrame, fv: pd.DataFrame, ate, por: str | None = None
     return out.rename_axis(por or "GRUPO").reset_index()
 
 
+def jornada(fv: pd.DataFrame, dias) -> pd.DataFrame:
+    """Jornada somável de um período, por vendedor (pelo LOGIN): nº de visitas com par e soma dos minutos."""
+    v = fv[fv["CONTA_COMO_VISITA"] & fv["COD_VENDEDOR_LOGIN"].notna() & fv["DATA"].isin(pd.to_datetime(list(dias)))]
+    return v.groupby("COD_VENDEDOR_LOGIN").agg(VISITAS_COM_PAR=("MINUTOS_EM_LOJA", "count"), MINUTOS_SOMA=("MINUTOS_EM_LOJA", "sum")).reset_index().rename(
+        columns={"COD_VENDEDOR_LOGIN": "COD_VENDEDOR"})
+
+
 def jornada_dia(fv: pd.DataFrame) -> pd.DataFrame:
     """Horários do dia por vendedor (pelo LOGIN de quem fez o check-in): 1ª entrada,
     última saída e tempo médio em loja das visitas com par."""
@@ -97,12 +125,12 @@ def jornada_dia(fv: pd.DataFrame) -> pd.DataFrame:
         VISITAS_COM_PAR=("MINUTOS_EM_LOJA", "count"), TEMPO_MEDIO_LOJA_MIN=("MINUTOS_EM_LOJA", "mean")).reset_index().rename(columns={"COD_VENDEDOR_LOGIN": "COD_VENDEDOR"})
 
 
-def diario_vendedor(L: pd.DataFrame, fv: pd.DataFrame) -> pd.DataFrame:
+def diario_vendedor(L: pd.DataFrame, fv: pd.DataFrame, fp: pd.DataFrame) -> pd.DataFrame:
     """1 linha = dia de rota × vendedor: os KPIs do dia + a jornada. É a tabela que
     alimenta tabela e gráfico do painel na visão 'dia'."""
     partes = []
     for d in sorted(L["DATA_ROTA"].unique()):
-        k = kpis(L, fv, [d], por="COD_VENDEDOR")
+        k = kpis(L, fv, fp, [d], por="COD_VENDEDOR")
         k.insert(0, "DATA", d)
         partes.append(k)
     out = pd.concat(partes, ignore_index=True)

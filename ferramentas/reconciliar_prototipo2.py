@@ -57,13 +57,13 @@ def prototipo(dono: dict[str, str]) -> tuple[pd.DataFrame, pd.Timestamp]:
 
 
 def main() -> int:
-    L, fv, cal = parquet.carregar("LOJA_MES"), parquet.carregar("FATO_VISITA"), parquet.carregar("DIM_CALENDARIO")
+    L, fv, cal, fp = (parquet.carregar(n) for n in ("LOJA_MES", "FATO_VISITA", "DIM_CALENDARIO", "FATO_PEDIDO"))
     P, fim = prototipo(dict(zip(L["COD_CLIENTE"], L["EXECUTIVO"])))
     if fv["DATA"].max() != fim:
         print(f"As bases atuais vao ate {fv['DATA'].max():%d/%m/%Y}; o prototipo, ate {fim:%d/%m/%Y}. A comparacao so vale com as MESMAS bases.")
         return 2
     dias = cal[(cal["ANO_MES"] == fim.strftime("%Y-%m")) & (cal["DATA"] <= fim)]["DATA"]
-    K = metricas.kpis(L, fv, dias, por="EXECUTIVO")
+    K = metricas.kpis(L, fv, fp, dias, por="EXECUTIVO", criterio="janela")       # o protótipo usa a regra da janela (D-25)
     j = P.merge(K, on="EXECUTIVO", how="outer", suffixes=("_PROTO", ""))
     print(f"Mes ate {fim:%d/%m/%Y} · {len(j)} vendedores · prototipo x modelo\n")
     dif_total = 0

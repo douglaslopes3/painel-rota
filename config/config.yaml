@@ -37,6 +37,7 @@ fontes:
     # pessoa e posição vaga. Enquanto a coluna não existir na planilha, a ligação é pelo NOME do executivo.
     colunas_opcionais:
       "Cód. vendedor": COD_VENDEDOR
+      "Nome cliente": NOME_CLIENTE        # P-14: sem ela, 1.947 das 2.973 lojas de set/26 aparecem só pelo código (o nome vem de pedido/check-in)
     canais_esperados: [PRESENCIAL, TELEFONE]      # gabarito de conferência: valor fora da lista vira aviso, não é corrigido
 
   checkins:                         # Mercanet · timeline de check-in/check-out · 1 linha = 1 evento · extração acumulada do mês (D-06)
@@ -125,7 +126,18 @@ regras:                             # D-02: regras do protótipo 2 (conferidas e
   pedido:
     situacoes_excluidas: ["Cancelado"]         # P-09: Bloqueado conta (como no protótipo 2)
     coluna_valor: VALOR_PEDIDO                 # é a coluna que o protótipo 2 usa (o rodapé dele diz "bruto − desconto", mas o dado é este)
+    # D-25 (17/09/2026): "com pedido" = a loja tem pedido válido NO MÊS até a data (mesma lógica da aderência, D-03).
+    # "janela" = regra do protótipo 2 (dia da rota + N dias corridos); continua calculada na LOJA_MES e serve à reconciliação.
+    criterio: mes                              # mes | janela
     janela_dias_corridos: 1                    # o pedido conta para a loja se emitido no dia da rota ou até N dias CORRIDOS depois (P-13)
+
+painel:
+  arquivo: Painel_Rota.html         # nome estável do arquivo publicado (D-05)
+  niveis_gerados: [N1]              # Fase 3: só a visão do head, para revisão. Fase 4: [N1, N2, N3] = 9 painéis (D-21)
+  faixas:                           # cores dos percentuais: >= verde, >= ambar, abaixo vermelho (protótipo 2: 90/60)
+    verde: 90
+    ambar: 60
+  rotulo_quantidade: "Quantidade solicitada"   # P-02: unidade não declarada na origem — não chamar de volume/kg até confirmar
 
 qualidade:                          # só para os relatórios de exceção; não muda nenhum número
   visita_curta_min: 1
@@ -133,4 +145,5 @@ qualidade:                          # só para os relatórios de exceção; não
 
 validacao:
   tolerancia_reconciliacao: 0.05    # diferença absoluta aceita entre a soma das linhas e o rodapé da fonte
+  html_max_mb: 5                    # teto do HTML de cada painel (esperado < 1 MB)
   base_velha_horas: 36              # aviso quando o arquivo mais novo de check-ins/pedidos é mais antigo que isto (R-03)
