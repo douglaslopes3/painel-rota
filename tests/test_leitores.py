@@ -146,20 +146,67 @@ def test_mesmo_mes_em_dois_arquivos_aborta():
     comum.conferir_meses("checkins", {"a.csv": ["2026-09"], "b.csv": ["2026-10"]})    # meses distintos: passa
 
 
-def test_modelo_do_depara_e_lido_e_aponta_o_que_falta():
-    modelo = RAIZ / "docs" / "DePara_Estrutura_Rota_MODELO.xlsx"
-    if not modelo.exists():
-        print("   (modelo do de-para ausente: teste pulado)")
-        return
-    df, x = estrutura.ler_arquivo(modelo)
-    ex, vi = estrutura.separar(df)
-    assert x["executivos"] == len(ex) > 0 and len(vi) > 0
-    assert not vi["VISAO"].str.upper().str.startswith("EXEMPLO").any()          # a linha de exemplo não entra
-    rota = pd.DataFrame({"EXECUTIVO": ex["EXECUTIVO"], "SUPERVISOR": ex["SUPERVISOR"]})
-    ci = pd.DataFrame({"LOGIN": ["XYZ"]})
-    prob = estrutura.conferir(ex, vi, rota, ci)
-    assert any("sem LOGIN_MERCANET" in p for p in prob) and any("XYZ" in p for p in prob)   # modelo em branco => pendências listadas
-    assert any("sem PASTA_USUARIO" in p for p in prob)
+CAB_H = ["(N1)\nCÓDIGO HEAD", "CRIAR NO BI\n(N1)\nHEAD", "(N1)\nNOME HEAD", "(N2)\nCÓDIGO GERENTE", "(N2)\nGERENTE", "(N2)\nNOME GERENTE",
+         "(N3)\nCÓDIGO SUP./EXEC.", "(N3)\nSUP./EXEC.", "(N3)\nNOME SUP./EXEC.", "(N4)\nCÓDIGO VEND./RCA", "(N4)\nVEND./RCA",
+         "(N4)\nNOME VEND./RCA", "PROJETO", "LOGIN MERCATNET", "NOME MERCANET"]
+
+
+def _hier(nome: str, n4: list[tuple]) -> Path:
+    """n4 = (cod N2, gerente, cod N3, supervisor, cod N4, nome N4, login)."""
+    linhas = [[20, "ATACADO", "HEAD UM", g, "Ger", gn, s, "Superv", sn, c, "Vend", n, "Projeto Rota", lg, None] for g, gn, s, sn, c, n, lg in n4]
+    a = TMP / nome
+    pd.DataFrame(linhas, columns=CAB_H).to_excel(a, sheet_name="Hierarquia", index=False)
+    return a
+
+
+H_OK = [(21000, "GER A", 2110, "MARCO MASSON", 101, "FULANO SILVA", "FSILVA"), (21000, "GER A", 2110, "MARCO MASSON", 103, "BELTRANO SOUZA", None),
+        (21000, "GER A", 2120, "ROBSON DIAS", 118, "[VAGO]", None), (22000, "GER B", 2220, "ADRIANA MIRANDA", 127, "CICRANO LIMA", "CLIMA")]
+
+
+def test_hierarquia_cabecalho_com_quebra_e_visoes_derivadas():
+    df, x = estrutura.ler_arquivo(_hier("h_ok.xlsx", H_OK))
+    assert (x["posicoes"], x["n1"], x["n2"], x["n3"], x["com_login"]) == (4, 1, 2, 3, 2)
+    assert df["N3_ROTULO"].iloc[0] == "2110 - Superv - MARCO MASSON" and df["LOGIN_MERCANET"].iloc[0] == "FSILVA"
+    v = estrutura.visoes(df)
+    assert v["NIVEL"].value_counts().to_dict() == {"N3": 3, "N2": 2, "N1": 1}
+    assert v[(v.NIVEL == "N2") & (v.COD == "21000")]["N3_CODS"].iloc[0] == ["2110", "2120"]      # o gerente vê as duas supervisões
+
+
+def test_hierarquia_codigo_n4_repetido_aborta():
+    assert aborta(estrutura.ler_arquivo, _hier("h_dup.xlsx", H_OK + [(22000, "GER B", 2220, "ADRIANA MIRANDA", 127, "OUTRO", None)]))
+
+
+def test_hierarquia_supervisor_com_dois_gerentes_aborta():
+    assert aborta(estrutura.ler_arquivo, _hier("h_pai.xlsx", H_OK + [(22000, "GER B", 2110, "MARCO MASSON", 140, "OUTRO", None)]))
+
+
+def test_conferir_por_nome_aponta_vago_repetido_faltantes_e_logins():
+    df, _ = estrutura.ler_arquivo(_hier("h_vago.xlsx", H_OK + [(21000, "GER A", 2120, "ROBSON DIAS", 121, "[VAGO]", None)]))
+    rota = pd.DataFrame({"EXECUTIVO": ["FULANO SILVA", "[VAGO]", "NOVATO"], "SUPERVISOR": ["Marco", "Robson", "Adriana"],
+                         "COD_VENDEDOR": pd.array([pd.NA] * 3, dtype="string")})
+    prob = " | ".join(estrutura.conferir(df, rota, pd.DataFrame({"LOGIN": ["FSILVA", "XYZ"]})))
+    assert "NOME nao e unico" in prob and "[VAGO]" in prob                   # 2 posições [VAGO]: ambíguo por nome
+    assert "NOVATO" in prob and "XYZ" in prob and "sem LOGIN MERCANET" in prob
+
+
+def test_conferir_por_codigo_resolve_o_vago_e_acusa_supervisor_trocado():
+    df, _ = estrutura.ler_arquivo(_hier("h_cod.xlsx", H_OK + [(21000, "GER A", 2120, "ROBSON DIAS", 121, "[VAGO]", None)]))
+    rota = pd.DataFrame({"EXECUTIVO": ["FULANO SILVA", "BELTRANO SOUZA", "[VAGO]", "[VAGO]", "CICRANO LIMA"],
+                         "SUPERVISOR": ["Marco", "Marco", "Robson", "Robson", "Marco"],
+                         "COD_VENDEDOR": pd.array(["101", "103", "118", "121", "127"], dtype="string")})
+    prob = estrutura.conferir(df, rota, pd.DataFrame({"LOGIN": ["FSILVA", "CLIMA"]}))
+    assert not any("nao e unico" in p or "sem posicao" in p for p in prob)   # por código, dois [VAGO] não são problema
+    assert any("supervisor da rota nao bate" in p and "CICRANO LIMA" in p for p in prob)
+
+
+def test_rota_com_codigo_do_vendedor():
+    a = _rota("Rota_e.xlsx", ["2026-10-01", "2026-10-02"], [1000001, 1000002])
+    d = pd.read_excel(a, sheet_name="Base de Clientes"); d.insert(2, "Cód. vendedor", [101, 101])
+    d.to_excel(a, sheet_name="Base de Clientes", index=False)
+    df, x = rota_mensal.ler_arquivo(a)
+    assert x["com_codigo_vendedor"] and df["COD_VENDEDOR"].tolist() == ["101", "101"]
+    d.loc[1, "Cód. vendedor"] = None; d.to_excel(a, sheet_name="Base de Clientes", index=False)
+    assert aborta(rota_mensal.ler_arquivo, a)                                # coluna presente tem de vir completa
 
 
 if __name__ == "__main__":

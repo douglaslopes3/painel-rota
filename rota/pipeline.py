@@ -74,15 +74,18 @@ def _ingerir(forcar: bool) -> dict:
     if estrutura.arquivo().exists():
         from .extract import cache
         df, x = cache.ler(estrutura.arquivo(), estrutura.ler_arquivo, forcar)
-        L.contar(estrutura.arquivo().name, x["executivos"] + x["visoes"], 0, executivos=x["executivos"], visoes=x["visoes"])
-        ex, vi = estrutura.separar(df)
-        problemas = estrutura.conferir(ex, vi, rota, ci)
+        L.contar(estrutura.arquivo().name, x["posicoes"], 0, **x)
+        vis = estrutura.visoes(df)
+        L.log(f"hierarquia: {x['posicoes']} posicoes (N4) | {x['n3']} supervisores | {x['n2']} gerentes | {x['n1']} head | "
+              f"{x['com_login']} com login | {len(vis)} visoes possiveis", "ok")
+        L.log("chave rota x hierarquia: " + ("CODIGO do vendedor" if rota["COD_VENDEDOR"].notna().all() else "NOME do executivo (a rota nao traz o codigo do vendedor)"))
+        problemas = estrutura.conferir(df, rota, ci)
         for p in problemas:
             L.log("de-para: " + p, "aviso")
         if problemas and CFG["fontes"]["estrutura"].get("obrigatorio"):
             L.abortar(f"de-para de estrutura com {len(problemas)} problema(s) (listados acima). Corrija o arquivo e rode de novo.")
         if not problemas:
-            L.log(f"de-para: {x['executivos']} executivos e {x['visoes']} visoes, fechado com a rota e os check-ins", "ok")
+            L.log("de-para fechado com a rota e os check-ins", "ok")
     L.etapa_fim("ok", chaves=chaves, problemas_depara=len(problemas))
     return {"chaves": chaves, "problemas_depara": problemas}
 

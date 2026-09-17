@@ -33,6 +33,10 @@ fontes:
       "Frequência anual 2026": FREQ_26
       "Volume 25": VOLUME_25
       "Volume 26": VOLUME_26
+    # Código do vendedor (N4 da hierarquia: 107, 118...). É a chave rota ↔ hierarquia (D-17): resiste a homônimo, troca de
+    # pessoa e posição vaga. Enquanto a coluna não existir na planilha, a ligação é pelo NOME do executivo.
+    colunas_opcionais:
+      "Cód. vendedor": COD_VENDEDOR
     canais_esperados: [PRESENCIAL, TELEFONE]      # gabarito de conferência: valor fora da lista vira aviso, não é corrigido
 
   checkins:                         # Mercanet · timeline de check-in/check-out · 1 linha = 1 evento · extração acumulada do mês (D-06)
@@ -81,11 +85,28 @@ fontes:
     reconciliar: [VALOR_PEDIDO, QTD_SOLICITADA, VALOR_BRUTO]
     situacoes_esperadas: ["Aberto", "Fatur. Parcial", "Faturado", "Fatur. + Canc.", "Bloqueado", "Cancelado"]
 
-  estrutura:                        # de-para de pessoas e visões (docs/DePara_Estrutura_Rota_MODELO.xlsx preenchido) — P-01
+  estrutura:                        # hierarquia N1–N4 do Projeto Rota + login do Mercanet, no formato da Hierarquia_Consolidada (D-16)
     arquivo: Bases/Estrutura/DePara_Estrutura_Rota.xlsx
-    obrigatorio: false              # false enquanto o de-para oficial não chega (ausência = aviso); true = ausência aborta
-    aba_executivos: Executivos
-    aba_visoes: Visoes
+    obrigatorio: false              # false enquanto o de-para não fecha (ausência/pendência = aviso); true = aborta (D-15)
+    aba: Hierarquia
+    # nome no staging -> cabeçalhos aceitos. Vale a coluna cujo cabeçalho TERMINA com um deles (sem acento, caixa ou quebra de
+    # linha): "CRIAR NO BI / (N1) / HEAD" casa com "(N1) HEAD". As visões (painéis) saem de N1, N2 e N3; não são digitadas.
+    colunas:
+      N1_COD: ["(N1) CÓDIGO HEAD"]
+      N1_PAPEL: ["(N1) HEAD"]
+      N1_NOME: ["(N1) NOME HEAD"]
+      N2_COD: ["(N2) CÓDIGO GERENTE"]
+      N2_PAPEL: ["(N2) GERENTE"]
+      N2_NOME: ["(N2) NOME GERENTE"]
+      N3_COD: ["(N3) CÓDIGO SUP./EXEC."]
+      N3_PAPEL: ["(N3) SUP./EXEC."]
+      N3_NOME: ["(N3) NOME SUP./EXEC."]
+      N4_COD: ["(N4) CÓDIGO VEND./RCA"]
+      N4_PAPEL: ["(N4) VEND./RCA"]
+      N4_NOME: ["(N4) NOME VEND./RCA"]          # tem de ser igual ao `Executivo` da rota enquanto a rota não trouxer o código
+      PROJETO: ["PROJETO"]
+      LOGIN_MERCANET: ["LOGIN MERCANET", "LOGIN MERCATNET"]   # a 2ª grafia é a do arquivo de 17/09/2026
+      NOME_MERCANET: ["NOME MERCANET"]
 
 validacao:
   tolerancia_reconciliacao: 0.05    # diferença absoluta aceita entre a soma das linhas e o rodapé da fonte

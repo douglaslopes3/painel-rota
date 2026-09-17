@@ -22,12 +22,15 @@ Decisões do Douglas (17/09/2026, Fase 0), salvo indicação. O porquê e as alt
 | D-13 | 17/09 | Mesmo mês em dois arquivos da mesma fonte ABORTA (padrão DN/Gerencial); versão antiga vai para subpasta não lida. Substitui a proposta da Etapa 6 de "vale a mais recente". |
 | D-14 | 17/09 | Minimização no staging: endereço, descrição, latitude/longitude (check-ins) e CNPJ/CPF, ordem de compra, nota fiscal, desconto e preço médios (pedidos) não são ingeridos. |
 | D-15 | 17/09 | Enquanto o de-para oficial não chega, `fontes.estrutura.obrigatorio: false` (ausência e pendências = aviso). Ao chegar, passa a `true` (aborta). |
+| D-16 | 17/09 | De-para de estrutura no formato da `Hierarquia_Consolidada` do Gerencial (aba `Hierarquia`, 1 linha por posição N4, com N1–N3 e LOGIN/NOME MERCANET), montado pelo Douglas. Substitui o modelo de 2 abas (`Executivos`/`Visoes`): as visões saem de N1, N2 e N3 e o rótulo `código - papel - nome` é o das pastas de publicação. |
+| D-17 | 17/09 | A chave rota ↔ hierarquia passa a ser o CÓDIGO do vendedor (N4). A planilha de rota ganha a coluna `Cód. vendedor`, que vira parte do modelo que o Gui entrega todo mês. Enquanto a coluna não existir, o pipeline liga pelo nome do executivo (que tem de ser único). |
 
 ## Pendências
 
 | # | Pendência | Com quem | Bloqueia |
 |---|---|---|---|
-| P-01 | Preencher `DePara_Estrutura_Rota_MODELO.xlsx` e salvar em `Bases/Estrutura/DePara_Estrutura_Rota.xlsx`: confirmar 15 logins sugeridos, informar os 6 sem check-in, usuários e pastas das 7 visões, gerente de Hudson · Robson · Marco, confirmar `TESTERTM` ignorado | Gui / Atacado | Fase 2 |
+| P-01 | Hierarquia (D-16) salva em `Bases/Estrutura/DePara_Estrutura_Rota.xlsx`, fechada com a rota: HYGOR DOREA e LUIS SOUSA nas posições certas (evidência dos pedidos: 118 e, por eliminação, 119), um só `[VAGO]` (121 · Litoral), logins dos 6 sem check-in, `TESTERTM` ignorado | Douglas / Gui | Fase 2 |
+| P-11 | Quantos painéis: 9 (5 supervisores + 3 gerentes + 1 head; Erbino Botelho e Marcelo Hunter veriam o mesmo que Adriana e Anderson) ou 7 | Douglas | Fase 4 |
 | P-02 | Unidade e nome do indicador de volume (`Quantidade solicitada`) | Gui | card de volume |
 | P-03 | Por que 6 executivos não têm check-in (Hygor Dorea, Icaro Sanches, Luis Sousa, Marcus Flavio, Mauricio Rodrigues, Richard Silva) | Gui | leitura da aderência |
 | P-04 | Corte de duração para visita válida e tempo em loja | Gui | Fase 2 |

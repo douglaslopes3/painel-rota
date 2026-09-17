@@ -59,6 +59,11 @@ visita (1 por cliente × dia) e o pareamento check-in/check-out são regra de ne
 
 ## Estrutura (`estrutura.py`)
 
-Duas abas empilhadas num Parquet (coluna `ABA`). Executivos: SUPERVISOR, EXECUTIVO, LOGIN_MERCANET, ATIVO, DESDE, ATE.
-Visões: VISAO, NIVEL, SUPERVISORES (separados por `;`), USUARIO_NOME, PASTA_USUARIO, ATIVO. A linha de exemplo do modelo
-é descartada. Nada é inferido: login vazio fica vazio e vira pendência listada no log.
+Aba `Hierarquia`, no formato da `Hierarquia_Consolidada` do Gerencial (D-16). Grão: 1 linha = 1 posição de vendedor (N4).
+Colunas no staging: `N1_COD/PAPEL/NOME` (head), `N2_…` (gerente), `N3_…` (sup./exec.), `N4_…` (vend./RCA), `PROJETO`,
+`LOGIN_MERCANET`, `NOME_MERCANET` e os rótulos `N1_ROTULO … N4_ROTULO` = `código - papel - nome` (padrão das pastas de
+publicação). Código de N4 repetido, ou código de N1–N3 com dois nomes/superiores, aborta. As visões (painéis) são derivadas
+de N1, N2 e N3 por `estrutura.visoes()`. Nada é inferido: login vazio fica vazio e vira pendência listada no log.
+
+Chave com a rota (D-17): `COD_VENDEDOR` (coluna opcional `Cód. vendedor` da planilha de rota) = `N4_COD`; sem a coluna,
+`EXECUTIVO` = `N4_NOME`, que só serve enquanto o nome for único (duas posições `[VAGO]` tornam a ligação ambígua).
