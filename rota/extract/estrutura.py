@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Leitor do de-para de estrutura (`Bases/Estrutura/DePara_Estrutura_Rota.xlsx`, aba `Hierarquia`).
+"""Leitor do de-para de estrutura (`bases/Estrutura/DePara_Estrutura_Rota.xlsx`, aba `Hierarquia`).
 
 As bases não ligam o login do Mercanet ao executivo da rota, nem dizem quem vê
 o quê. Essa ligação é mantida pelo Douglas / time de Atacado neste arquivo, no

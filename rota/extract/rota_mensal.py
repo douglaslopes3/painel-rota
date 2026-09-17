@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Leitor da rota planejada do mês (`Bases/Rota/Rota_*.xlsx`, aba `Base de Clientes`).
+"""Leitor da rota planejada do mês (`bases/Rota/Rota_*.xlsx`, aba `Base de Clientes`).
 
 Grão: 1 linha = 1 cliente na rota do mês. A planilha é construída à mão pelo
 time de Atacado, então o leitor desconfia do layout:

@@ -5,10 +5,10 @@ qualidade Q1–Q16, em `Fase0_Diagnostico_Roadmap.html`, Etapa 4.
 
 | Fonte | Arquivo | Formato | Linhas | Período | Grão | Chave | Origem · cadência |
 |---|---|---|---:|---|---|---|---|
-| Rota planejada | `Bases/Rota/Rota_14092026.xlsx`, aba `Base de Clientes` | xlsx, 12 colunas | 2.973 | rota de set/26: 20 datas úteis, 02/09 a 30/09 | 1 linha = 1 cliente na rota do mês | `Cód. cliente` (7 dígitos, único) | construída pelo time de Atacado (Gui) · mensal |
-| Check-ins | `Bases/Mercanet/Mercanet.csv` | CSV `;`, cp1252, 12 colunas | 3.070 | 01/09/2026 06:40 a 16/09/2026 16:15 | 1 linha = 1 evento (CHECKIN 1.608 · CHECKOUT 1.462) | não há id de visita; `USUÁRIO` + `DATA EVENTO` + evento | Mercanet, timeline · diária, acumulada do mês |
-| Pedidos | `Bases/Pedidos/Pedidos.csv` | CSV `;`, cp1252, decimal com vírgula, 20 colunas | 2.468 + 1 rodapé de totais | emissão 01/09 a 16/09/2026 | 1 linha = 1 pedido, canal Atacado inteiro | `Pedido` (único) | Mercanet, consulta de pedidos · diária, acumulada do mês |
-| Estrutura | `Bases/Estrutura/DePara_Estrutura_Rota.xlsx` | xlsx, abas `Executivos` e `Visoes` | — | — | executivo · painel a gerar | `EXECUTIVO` · `VISAO` | time de Atacado · sob demanda · **pendente (P-01)** |
+| Rota planejada | `bases/Rota/Rota_14092026.xlsx`, aba `Base de Clientes` | xlsx, 12 colunas | 2.973 | rota de set/26: 20 datas úteis, 02/09 a 30/09 | 1 linha = 1 cliente na rota do mês | `Cód. cliente` (7 dígitos, único) | construída pelo time de Atacado (Gui) · mensal |
+| Check-ins | `bases/Mercanet/Mercanet.csv` | CSV `;`, cp1252, 12 colunas | 3.070 | 01/09/2026 06:40 a 16/09/2026 16:15 | 1 linha = 1 evento (CHECKIN 1.608 · CHECKOUT 1.462) | não há id de visita; `USUÁRIO` + `DATA EVENTO` + evento | Mercanet, timeline · diária, acumulada do mês |
+| Pedidos | `bases/Pedidos/Pedidos.csv` | CSV `;`, cp1252, decimal com vírgula, 20 colunas | 2.468 + 1 rodapé de totais | emissão 01/09 a 16/09/2026 | 1 linha = 1 pedido, canal Atacado inteiro | `Pedido` (único) | Mercanet, consulta de pedidos · diária, acumulada do mês |
+| Estrutura | `bases/Estrutura/DePara_Estrutura_Rota.xlsx` | xlsx, abas `Executivos` e `Visoes` | — | — | executivo · painel a gerar | `EXECUTIVO` · `VISAO` | time de Atacado · sob demanda · **pendente (P-01)** |
 
 ## O que a ingestão tira, contando
 

@@ -31,7 +31,7 @@ def _verificar() -> dict:
     dep = estrutura.arquivo()
     if not dep.exists():
         msg = (f"de-para de estrutura ausente ({CFG['fontes']['estrutura']['arquivo']}). "
-               "Preencha docs/DePara_Estrutura_Rota_MODELO.xlsx e salve com esse nome (pendencia P-01).")
+               "Formato: aba Hierarquia, N1-N4 + LOGIN MERCANET (docs/05_DICIONARIO_DADOS.md).")
         if CFG["fontes"]["estrutura"].get("obrigatorio"):
             L.abortar(msg)
         L.log(msg + " Seguindo SEM estrutura: check-ins nao serao atribuidos a executivos.", "aviso")
@@ -68,7 +68,7 @@ def _ingerir(forcar: bool) -> dict:
     for nome, df in (("check-ins", ci), ("pedidos", pd_)):
         sem_rota = sorted(set(df["ANO_MES"]) - meses_rota)
         if sem_rota:
-            L.log(f"{nome}: mes(es) {sem_rota} sem rota planejada em Bases/Rota — esses meses nao terao planejado x realizado", "aviso")
+            L.log(f"{nome}: mes(es) {sem_rota} sem rota planejada em bases/Rota — esses meses nao terao planejado x realizado", "aviso")
 
     problemas: list[str] = []
     if estrutura.arquivo().exists():

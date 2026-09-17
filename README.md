@@ -13,19 +13,19 @@ Modelo, indicadores, painel e publicação entram nas fases 2 a 4 (`docs/Fase0_D
 cd "C:\Users\dldsouza\OneDrive - Dori Alimentos S.A\Documentos\Painéis - Alavancas\ROTA"
 python run_rota.py            # verificar -> ingerir (bases -> staging) -> resumo e manifesto   (~1 s)
 python run_rota.py --forcar   # relê todas as bases ignorando o cache
-python tests/test_leitores.py # 16 testes dos leitores (não precisa de pytest)
+python tests/test_leitores.py # 21 testes dos leitores (não precisa de pytest)
 ```
 
 Qualquer falha termina com `PIPELINE ABORTADO`, exit code 1, dizendo o arquivo, a linha e o motivo.
 
-## Bases (`Bases/`, somente leitura)
+## Bases (`bases/`, somente leitura)
 
 | Pasta | Arquivo | O que é | Rotina |
 |---|---|---|---|
-| `Rota/` | `Rota_*.xlsx`, aba `Base de Clientes` | rota planejada do mês, 1 linha por cliente | 1 arquivo por mês, entregue pelo time de Atacado no fechamento |
+| `Rota/` | `Rota_*.xlsx`, aba `Base de Clientes` | rota planejada do mês, 1 linha por cliente, com `Cód. vendedor` (chave com a hierarquia, D-17) | 1 arquivo por mês, entregue pelo time de Atacado no fechamento |
 | `Mercanet/` | `*.csv` | timeline de check-in/check-out | extração acumulada do mês: **substituir** o arquivo do mês corrente todo dia |
 | `Pedidos/` | `*.csv` | consulta de pedidos (canal Atacado inteiro), com rodapé de totais | idem |
-| `Estrutura/` | `DePara_Estrutura_Rota.xlsx` | login do Mercanet ↔ executivo; painéis a gerar e pastas | mantido pelo time de Atacado (modelo em `docs/`) — **pendente (P-01)** |
+| `Estrutura/` | `DePara_Estrutura_Rota.xlsx`, aba `Hierarquia` | hierarquia N1–N4 do Projeto Rota (formato da `Hierarquia_Consolidada` do Gerencial) + login do Mercanet; as visões saem de N1, N2 e N3 | mantido pelo Douglas / Atacado; faltam 7 logins (P-01) |
 
 Regras de operação:
 
@@ -39,7 +39,7 @@ Regras de operação:
 ## Estrutura
 
 ```
-Bases/                 origem (somente leitura)
+bases/                 origem (somente leitura)
 config/config.yaml     caminhos, colunas de cada base, logins ignorados, tolerâncias — nenhuma regra mora no código
 rota/                  extract/ (cache, comum, rota_mensal, checkins, pedidos, estrutura) · utils/ · manifesto · pipeline
 data/rota/             staging/ (Parquet por arquivo) · curated/manifesto.json · quality/ · logs/   (não versionado)
@@ -58,7 +58,6 @@ run_rota.py · requirements.txt
 | `docs/01_INVENTARIO_FONTES.md` | o que cada base tem, medido |
 | `docs/05_DICIONARIO_DADOS.md` | colunas do staging, tipos e o que fica de fora |
 | `docs/10_DECISOES.md` | decisões D-nn e pendências P-nn, com data |
-| `docs/DePara_Estrutura_Rota_MODELO.xlsx` | modelo para o time de Atacado preencher |
 
 ## Regras que o projeto segue
 

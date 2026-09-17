@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Leitor da timeline de check-in/check-out do Mercanet (`Bases/Mercanet/*.csv`).
+"""Leitor da timeline de check-in/check-out do Mercanet (`bases/Mercanet/*.csv`).
 
 Grão: 1 linha = 1 evento (CHECKIN ou CHECKOUT) de um usuário num cliente. O
 staging guarda o EVENTO BRUTO: a deduplicação em visita (1 por cliente × dia) e

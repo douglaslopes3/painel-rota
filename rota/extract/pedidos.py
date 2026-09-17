@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Leitor da consulta de pedidos do Mercanet (`Bases/Pedidos/*.csv`).
+"""Leitor da consulta de pedidos do Mercanet (`bases/Pedidos/*.csv`).
 
 Grão: 1 linha = 1 pedido, do canal Atacado INTEIRO (o recorte "cliente de rota"
 é uma marca feita na transformação; nada é descartado aqui).

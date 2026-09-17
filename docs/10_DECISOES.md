@@ -17,24 +17,27 @@ Decisões do Douglas (17/09/2026, Fase 0), salvo indicação. O porquê e as alt
 | D-08 | 17/09 | Padrão técnico: base no DN + git, `requirements.txt`, `tests/` e docs numerados do Gerencial. |
 | D-09 | 17/09 | Produto fase 1: KPIs, tabela/gráfico por executivo, lista de lojas, tempo em loja. Fase 2: "Minha equipe no mês" (radar), "Lojas em aberto", deslocamento, evolução histórica, metas. |
 | D-10 | 17/09 | Uso no computador. Operação: Douglas, suplente Gui. Rastreamento por check-in é prática aceita. |
-| D-11 | 17/09 | `Bases/` organizada em subpastas por fonte (Rota, Mercanet, Pedidos, Estrutura); os 3 arquivos foram movidos sem alteração (MD5 conferido). `Painel Referência/` e `Transcrições/` ficam onde estão. |
-| D-12 | 17/09 | Git local na pasta do projeto, sem remoto; `Bases/`, `data/`, protótipos e transcrições fora do versionamento. |
+| D-11 | 17/09 | `bases/` organizada em subpastas por fonte (Rota, Mercanet, Pedidos, Estrutura); os 3 arquivos foram movidos sem alteração (MD5 conferido). `Painel Referência/` e `Transcrições/` ficam onde estão. |
+| D-12 | 17/09 | Git local na pasta do projeto, sem remoto; `bases/`, `data/`, protótipos e transcrições fora do versionamento. |
 | D-13 | 17/09 | Mesmo mês em dois arquivos da mesma fonte ABORTA (padrão DN/Gerencial); versão antiga vai para subpasta não lida. Substitui a proposta da Etapa 6 de "vale a mais recente". |
 | D-14 | 17/09 | Minimização no staging: endereço, descrição, latitude/longitude (check-ins) e CNPJ/CPF, ordem de compra, nota fiscal, desconto e preço médios (pedidos) não são ingeridos. |
 | D-15 | 17/09 | Enquanto o de-para oficial não chega, `fontes.estrutura.obrigatorio: false` (ausência e pendências = aviso). Ao chegar, passa a `true` (aborta). |
 | D-16 | 17/09 | De-para de estrutura no formato da `Hierarquia_Consolidada` do Gerencial (aba `Hierarquia`, 1 linha por posição N4, com N1–N3 e LOGIN/NOME MERCANET), montado pelo Douglas. Substitui o modelo de 2 abas (`Executivos`/`Visoes`): as visões saem de N1, N2 e N3 e o rótulo `código - papel - nome` é o das pastas de publicação. |
 | D-17 | 17/09 | A chave rota ↔ hierarquia passa a ser o CÓDIGO do vendedor (N4). A planilha de rota ganha a coluna `Cód. vendedor`, que vira parte do modelo que o Gui entrega todo mês. Enquanto a coluna não existir, o pipeline liga pelo nome do executivo (que tem de ser único). |
+| D-18 | 17/09 | Posições confirmadas pelo Douglas: **118 = HYGOR DOREA** (evidência: os 8 pedidos de set/26 com representante 118 são de clientes dele) e **119 = LUIS SOUSA** (por eliminação: única posição vaga do supervisor Hudson; sem pedido com o código 119 no mês). 121 · Litoral segue `[VAGO]` (os 33 clientes `[VAGO]` da rota são do litoral e os 3 pedidos com representante 121 são deles). Gravado no de-para; cabeçalho corrigido para `LOGIN MERCANET`. Versão anterior em `bases/Estrutura/_versoes/`. |
+| D-19 | 17/09 | Coluna **`Cód. vendedor`** inserida na rota de setembro (`bases/Rota/Rota_14092026.xlsx`, depois de `Executivo`), preenchida pela hierarquia. Original intacto em `bases/Rota/_versoes/Rota_14092026_original.xlsx`. Conferido: 2.973 linhas, 22 códigos, 1 código = 1 executivo e 1 supervisor, demais colunas iguais (diferença máxima de 6e-11 em decimais, por regravação do xlsx). Este passa a ser o MODELO da rota mensal (13 colunas). |
+| D-20 | 17/09 | Pasta de origem renomeada pelo Douglas para `bases/` (minúscula, como no DN e no Gerencial); config e docs atualizados. |
 
 ## Pendências
 
 | # | Pendência | Com quem | Bloqueia |
 |---|---|---|---|
-| P-01 | Hierarquia (D-16) salva em `Bases/Estrutura/DePara_Estrutura_Rota.xlsx`, fechada com a rota: HYGOR DOREA e LUIS SOUSA nas posições certas (evidência dos pedidos: 118 e, por eliminação, 119), um só `[VAGO]` (121 · Litoral), logins dos 6 sem check-in, `TESTERTM` ignorado | Douglas / Gui | Fase 2 |
+| P-01 | ~~Hierarquia fechada com a rota~~ **feito em 17/09 (D-16 a D-19)**: chave por código, 22 posições = 22 vendedores da rota. Falta só: LOGIN MERCANET de 7 posições (Richard Silva, Hygor Dorea, Mauricio Rodrigues, Luis Sousa, Icaro Sanches, Marcus Flavio e o `[VAGO]` 121) — ligado à P-03 — e confirmar com o Gui a posição 119 = Luis Sousa e o `TESTERTM` ignorado | Douglas / Gui | atribuição de check-ins dessas 7 posições |
 | P-11 | Quantos painéis: 9 (5 supervisores + 3 gerentes + 1 head; Erbino Botelho e Marcelo Hunter veriam o mesmo que Adriana e Anderson) ou 7 | Douglas | Fase 4 |
 | P-02 | Unidade e nome do indicador de volume (`Quantidade solicitada`) | Gui | card de volume |
 | P-03 | Por que 6 executivos não têm check-in (Hygor Dorea, Icaro Sanches, Luis Sousa, Marcus Flavio, Mauricio Rodrigues, Richard Silva) | Gui | leitura da aderência |
 | P-04 | Corte de duração para visita válida e tempo em loja | Gui | Fase 2 |
-| P-05 | Layout fixo da rota mensal (nome estável da coluna de data) e nome do arquivo | Gui | robustez (o leitor já tolera o mês no nome da coluna) |
+| P-05 | Passar ao Gui o modelo da rota mensal: as 13 colunas de `bases/Rota/Rota_14092026.xlsx` (com `Cód. vendedor`), de preferência com nome fixo na coluna de data (ex.: `Data Rota`) | Douglas → Gui | rota de outubro |
 | P-06 | Meta: arquivo próprio ou Net Sales 26 ÷ frequência? | Gui | fase 2 do produto |
 | P-07 | `Frequência anual` é de visita ou de compra? | Gui | evolução da frequência |
 | P-08 | Visitas em fim de semana e check-in em cliente fora da rota contam? | Gui | Fase 2 |

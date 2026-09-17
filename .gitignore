@@ -7,10 +7,7 @@ data/
 Painel Referência/
 Transcrições/
 
-# De-para: só o MODELO (para preencher) é versionado; as versões preenchidas e devolvidas não.
-# Atenção: o modelo já traz nomes de executivos e logins sugeridos — este repositório é LOCAL; não publicar em remoto sem revisar.
-docs/DePara_Estrutura_Rota_*.xlsx
-!docs/DePara_Estrutura_Rota_MODELO.xlsx
+docs/DePara_*.xlsx
 
 # Credenciais
 *.env
