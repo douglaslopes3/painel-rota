@@ -41,7 +41,7 @@ fez o check-in nem o `Representante` do pedido. O login fica ao lado (`COD_VENDE
 | FATO_VISITA | MINUTOS_EM_LOJA, N_PARES | maior par check-in → check-out do dia; cada check-out pareia com o último check-in antes dele; nulo sem par |
 | FATO_VISITA | CONTA_COMO_VISITA | tem evento de `regras.visita.eventos_que_contam` (e duração ≥ `minutos_minimos`, se definido) |
 | FATO_VISITA | NA_ROTA · NO_DIA_DA_ROTA | cliente está na rota do mês · DATA = DATA_ROTA |
-| FATO_PEDIDO | VALIDO | `SITUACAO` fora de `regras.pedido.situacoes_excluidas` (Cancelado) |
+| FATO_PEDIDO | VALIDO | `SITUACAO` fora de `regras.pedido.situacoes_excluidas` (Cancelado e Bloqueado, D-33) |
 | FATO_PEDIDO | VALOR | `regras.pedido.coluna_valor` (VALOR_PEDIDO) |
 | FATO_PEDIDO | NA_JANELA_DA_ROTA | emissão entre DATA_ROTA e DATA_ROTA + `janela_dias_corridos` (1) |
 | LOJA_MES | STATUS | 3 visita + pedido · 2 só visita · 1 só pedido · 0 sem contato — sempre referente ao DIA DA ROTA |

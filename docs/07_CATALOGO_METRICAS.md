@@ -29,6 +29,22 @@ Também ficam na LOJA_MES, por loja: `DIAS_VISITADOS`, `PRIMEIRA/ULTIMA_VISITA`,
 Fora do escopo desta fase (D-09 / GAPs): receita líquida, volume em kg, meta e % da meta, tempo de deslocamento, contato
 telefônico, radar "Minha equipe", "Lojas em aberto".
 
+## Regras revistas em 18/09/2026 (D-31 a D-34)
+
+Visita: qualquer check-in ou check-out do dia conta, sem duração mínima (D-31, D-34), **exceto em sábado e domingo** (D-32).
+Pedido válido: situação diferente de **Cancelado e Bloqueado** (D-33). Efeito na visão do head, mês até 16/09/2026:
+
+| Indicador | Antes | Depois |
+|---|---:|---:|
+| Fora do roteiro | 482 | 480 |
+| Visitadas até a data · Aderência no mês | 501 · 36,6% | 501 · 36,6% |
+| Com pedido · % positivação | 238 · 17,4% | 228 · 16,7% |
+| Visita + pedido · Sem contato | 94 · 723 | 88 · 727 |
+| Quantidade solicitada | 12.416 | 11.961 |
+
+As tabelas abaixo são o retrato do aceite da Fase 2, com as regras do protótipo 2 (Bloqueado e fim de semana contando). Com as
+regras atuais, `ferramentas/reconciliar_prototipo2.py` passa a apontar diferenças — deliberadas, por D-32 e D-33.
+
 ## Reconciliação com o protótipo 2 (aceite da Fase 2)
 
 `python ferramentas/reconciliar_prototipo2.py` refaz a conta do JavaScript do protótipo sobre os dados embutidos nele e

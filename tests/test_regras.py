@@ -80,6 +80,13 @@ def test_visita_sem_par_conta_mas_nao_tem_minutos():
     assert v3.N_CHECKINS == 0 and v3.CONTA_COMO_VISITA and loja("3").VISITA_NO_DIA      # só check-out conta (regra do protótipo, P-12)
 
 
+def test_evento_em_fim_de_semana_nao_conta_como_visita():
+    """D-32. 10/10/2026 é sábado, 11/10 é domingo, 12/10 é segunda."""
+    v = visitas.gerar(_ci([("AAA", "1", "2026-10-10 09:00", "CHECKIN"), ("AAA", "1", "2026-10-10 09:30", "CHECKOUT"),
+                           ("AAA", "2", "2026-10-11 09:00", "CHECKIN"), ("AAA", "3", "2026-10-12 09:00", "CHECKIN")]))
+    assert len(v) == 3 and list(v.sort_values("DATA").CONTA_COMO_VISITA) == [False, False, True]      # a linha fica, só não conta
+
+
 def test_visita_fora_do_dia_nao_e_visita_no_dia_mas_e_fora_do_roteiro():
     l2 = loja("2")
     assert not l2.VISITA_NO_DIA and l2.DIAS_FORA_DO_ROTEIRO == 1 and l2.DIAS_VISITADOS == 1
@@ -87,7 +94,7 @@ def test_visita_fora_do_dia_nao_e_visita_no_dia_mas_e_fora_do_roteiro():
 
 def test_pedido_vale_no_dia_da_rota_ou_no_dia_corrido_seguinte_e_soma_todos():
     l1 = loja("1")
-    assert l1.PEDIDOS_JANELA == 2 and l1.VALOR_JANELA == 150.0 and l1.QTD_JANELA == 15.0 and l1.STATUS == 3    # Bloqueado conta (P-09)
+    assert l1.PEDIDOS_JANELA == 1 and l1.VALOR_JANELA == 100.0 and l1.QTD_JANELA == 10.0 and l1.STATUS == 3    # o Bloqueado de 06/10 NÃO conta (D-33)
 
 
 def test_cancelado_fica_fora_e_pedido_fora_da_janela_so_entra_no_mes():
@@ -113,9 +120,9 @@ def test_kpis_da_semana_e_a_soma_das_partes():
 def test_criterio_mes_pedido_e_visita_valem_em_qualquer_dia_ate_a_data():
     """D-25. Semana 05..09/10: lojas 1, 2, 3 e 4 no roteiro. Até 09/10 só a loja 1 tem pedido válido (05 e 06/10); a 4 pede em 12/10."""
     k9 = metricas.kpis(L, FV, FP, pd.date_range("2026-10-05", "2026-10-09"), criterio="mes").iloc[0]
-    assert (k9.ROTEIRO, k9.COM_PEDIDO, k9.VALOR_PEDIDOS, k9.VISITADAS_ATE_A_DATA, k9.VISITA_E_PEDIDO, k9.SEM_CONTATO) == (4, 1, 150.0, 3, 1, 1)
+    assert (k9.ROTEIRO, k9.COM_PEDIDO, k9.VALOR_PEDIDOS, k9.VISITADAS_ATE_A_DATA, k9.VISITA_E_PEDIDO, k9.SEM_CONTATO) == (4, 1, 100.0, 3, 1, 1)
     k12 = metricas.kpis(L, FV, FP, pd.date_range("2026-10-01", "2026-10-12"), criterio="mes").iloc[0]      # o pedido de 12/10 (fora da janela) agora conta
-    assert (k12.COM_PEDIDO, k12.VALOR_PEDIDOS, k12.SEM_CONTATO, k12.TEL_COM_PEDIDO) == (2, 220.0, 0, 1)
+    assert (k12.COM_PEDIDO, k12.VALOR_PEDIDOS, k12.SEM_CONTATO, k12.TEL_COM_PEDIDO) == (2, 170.0, 0, 1)
     a = metricas.aderencia_mes(L, FV, "2026-10-12").iloc[0]
     assert a.VISITADAS_NO_MES == k12.VISITADAS_ATE_A_DATA == 3 and k12.PCT_ADERENCIA == 75.0
 
@@ -155,7 +162,7 @@ def test_painel_so_leva_a_visao_e_os_cards_fecham_com_a_lista():
     assert [d["lab"] for d in J["dias"]] == ["05/10", "06/10", "09/10"] and [d["futuro"] for d in J["dias"]] == [False, False, True]
     C = {c: i for i, c in enumerate(J["cols"])}
     mes_0610 = J["agg"]["mes"][1][0]                                          # mês até 06/10, vendedor 101
-    assert (mes_0610[C["ROTEIRO"]], mes_0610[C["VISITADAS_NO_DIA"]], mes_0610[C["COM_PEDIDO"]], mes_0610[C["QTD_SOLICITADA"]]) == (3, 2, 1, 15.0)
+    assert (mes_0610[C["ROTEIRO"]], mes_0610[C["VISITADAS_NO_DIA"]], mes_0610[C["COM_PEDIDO"]], mes_0610[C["QTD_SOLICITADA"]]) == (3, 2, 1, 10.0)      # sem o Bloqueado (D-33)
     assert "VALOR_PEDIDOS" not in J["cols"] and J["horarios"][0][0] == ["09:00", "15:05"]      # D-04: valor não vai para o painel
 
 

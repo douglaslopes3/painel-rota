@@ -118,13 +118,14 @@ calendario:
 regras:                             # D-02: regras do protótipo 2 (conferidas em 100% dos casos contra os dados embutidos nele)
   visita:
     # 1 visita = 1 cliente × dia com QUALQUER evento. O protótipo conta também o dia que só tem CHECKOUT (15 casos em set/26);
-    # para exigir check-in, deixar só [CHECKIN]. (P-12)
+    # para exigir check-in, deixar só [CHECKIN]. Mantido em 18/09/2026 (D-34).
     eventos_que_contam: [CHECKIN, CHECKOUT]
     # minutos em loja = o MAIOR par check-in -> check-out do cliente no dia; cada check-out pareia com o último check-in antes dele.
-    minutos_minimos: null           # P-04: duração mínima para a visita valer (null = toda visita vale)
+    minutos_minimos: null           # D-31 (18/09/2026): sem duração mínima — toda visita vale (null); com número, visita sem par também não vale
+    conta_fim_de_semana: false      # D-32 (18/09/2026): evento em sábado ou domingo NÃO conta como visita (fica na FATO_VISITA, marcado)
   canais_sem_controle_de_visita: [TELEFONE]    # acompanhados só por pedido (D-02)
   pedido:
-    situacoes_excluidas: ["Cancelado"]         # P-09: Bloqueado conta (como no protótipo 2)
+    situacoes_excluidas: ["Cancelado", "Bloqueado"]   # D-33 (18/09/2026): Bloqueado NÃO conta como pedido tirado (o protótipo 2 contava)
     coluna_valor: VALOR_PEDIDO                 # é a coluna que o protótipo 2 usa (o rodapé dele diz "bruto − desconto", mas o dado é este)
     # D-25 (17/09/2026): "com pedido" = a loja tem pedido válido NO MÊS até a data (mesma lógica da aderência, D-03).
     # "janela" = regra do protótipo 2 (dia da rota + N dias corridos); continua calculada na LOJA_MES e serve à reconciliação.

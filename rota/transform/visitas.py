@@ -7,6 +7,8 @@ Regras (D-02, conferidas contra os dados embutidos no protótipo 2 — 100% dos
 - 1 visita = 1 cliente × dia com pelo menos um evento de `regras.visita.
   eventos_que_contam`. Vários check-ins no mesmo cliente e dia são UMA visita;
   a quantidade fica em N_CHECKINS.
+- Com `conta_fim_de_semana: false` (D-32), o cliente × dia de sábado ou domingo
+  continua na tabela, mas não conta como visita.
 - Minutos em loja = o MAIOR par check-in -> check-out do dia. Cada check-out
   pareia com o ÚLTIMO check-in registrado antes dele (desde o check-out
   anterior). Par não atravessa a meia-noite. Sem par, MINUTOS_EM_LOJA é nulo.
@@ -47,4 +49,6 @@ def gerar(checkins: pd.DataFrame) -> pd.DataFrame:
     minimo = regras.get("minutos_minimos")
     if minimo is not None:                          # P-04: com duração mínima, visita sem par também não vale
         v["CONTA_COMO_VISITA"] &= v["MINUTOS_EM_LOJA"].fillna(-1) >= float(minimo)
+    if not regras.get("conta_fim_de_semana", True):     # D-32: sábado e domingo não contam
+        v["CONTA_COMO_VISITA"] &= v["DATA"].dt.dayofweek < 5
     return v
