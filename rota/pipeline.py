@@ -18,7 +18,7 @@ import time
 from datetime import datetime
 
 from . import manifesto, metricas, painel, qualidade, render
-from .extract import checkins, comum, estrutura, pedidos, rota_mensal
+from .extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal
 from .load import parquet
 from .transform import modelo
 from .utils import log as L
@@ -93,13 +93,33 @@ def _ingerir(forcar: bool) -> dict:
             L.abortar(f"de-para de estrutura com {len(problemas)} problema(s) (listados acima). Corrija o arquivo e rode de novo.")
         if not problemas:
             L.log("de-para fechado com a rota e os check-ins", "ok")
+    cli = None                                     # D-38: cadastro de nomes das lojas da rota
+    obrig = bool(CFG["fontes"]["clientes"].get("obrigatorio"))
+    if clientes.arquivo().exists():
+        from .extract import cache
+        cli, x = cache.ler(clientes.arquivo(), clientes.ler_arquivo, forcar)
+        L.contar(clientes.arquivo().name, x["clientes"], 0, **x)
+        com_nome = set(cli.dropna(subset=["NOME_CLIENTE"])["COD_CLIENTE"])
+        sem = sorted(R - com_nome)
+        L.log(f"nomes de clientes: {x['clientes']:,} no cadastro | {len(R & com_nome):,} de {len(R):,} lojas da rota com nome | "
+              f"{len(com_nome - R):,} do cadastro fora da rota | maior nome {x['maior_nome']} caracteres ({x['nomes_no_tamanho_maximo']:,} nesse tamanho)", "ok")
+        if sem:
+            msg = f"{len(sem)} loja(s) da rota sem nome em {clientes.arquivo().name} (ex.: {sem[:5]}) — aparecem com o nome das outras fontes ou so pelo codigo."
+            if obrig:
+                L.abortar(msg)
+            L.log(msg, "aviso")
+    else:
+        msg = f"cadastro de nomes ausente ({CFG['fontes']['clientes']['arquivo']}): o nome da loja vem so de pedido/check-in."
+        if obrig:
+            L.abortar(msg)
+        L.log(msg, "aviso")
     L.etapa_fim("ok", chaves=chaves, problemas_depara=len(problemas))
-    return {"chaves": chaves, "problemas_depara": problemas, "_dados": (rota, ci, pd_, hier)}
+    return {"chaves": chaves, "problemas_depara": problemas, "_dados": (rota, ci, pd_, hier, cli)}
 
 
-def _modelar(rota, ci, pd_, hier) -> dict:
+def _modelar(rota, ci, pd_, hier, cli=None) -> dict:
     L.etapa_inicio("2 · MODELAR (staging -> fatos e dimensoes)")
-    m = modelo.construir(rota, ci, pd_, hier)
+    m = modelo.construir(rota, ci, pd_, hier, cli)
     modelo.integridade(m, ci, pd_, rota)
     fv, fp = m["FATO_VISITA"], m["FATO_PEDIDO"]
     L.log(f"visitas: {len(fv):,} (login x cliente x dia) | contam como visita {int(fv['CONTA_COMO_VISITA'].sum()):,} | a clientes da rota "
@@ -198,8 +218,8 @@ def executar(forcar: bool = False) -> int:
     L.titulo(f"PAINEL DE ROTA · execucao {L.EXECUCAO_ID}")
     dif = _verificar()
     info = _ingerir(forcar)
-    rota, ci, pd_, hier = info.pop("_dados")
-    m = _modelar(rota, ci, pd_, hier)
+    rota, ci, pd_, hier, cli = info.pop("_dados")
+    m = _modelar(rota, ci, pd_, hier, cli)
     calc = _calcular(m)
     gerados = _painel(m, calc, hier)
 

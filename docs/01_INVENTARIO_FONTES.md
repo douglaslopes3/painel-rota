@@ -9,6 +9,7 @@ qualidade Q1–Q16, em `Fase0_Diagnostico_Roadmap.html`, Etapa 4.
 | Check-ins | `bases/Mercanet/Mercanet.csv` | CSV `;`, cp1252, 12 colunas | 3.070 | 01/09/2026 06:40 a 16/09/2026 16:15 | 1 linha = 1 evento (CHECKIN 1.608 · CHECKOUT 1.462) | não há id de visita; `USUÁRIO` + `DATA EVENTO` + evento | Mercanet, timeline · diária, acumulada do mês |
 | Pedidos | `bases/Pedidos/Pedidos.csv` | CSV `;`, cp1252, decimal com vírgula, 20 colunas | 2.468 + 1 rodapé de totais | emissão 01/09 a 16/09/2026 | 1 linha = 1 pedido, canal Atacado inteiro | `Pedido` (único) | Mercanet, consulta de pedidos · diária, acumulada do mês |
 | Estrutura | `bases/Estrutura/DePara_Estrutura_Rota.xlsx` | xlsx, abas `Executivos` e `Visoes` | — | — | executivo · painel a gerar | `EXECUTIVO` · `VISAO` | time de Atacado · sob demanda · **pendente (P-01)** |
+| Clientes | `bases/Estrutura/Clientes_Rota.xlsx` | xlsx, 1ª aba | — | — | 1 cliente do Projeto Rota | `COD_CLIENTE` | Douglas · quando a rota muda · nome cortado em 35 caracteres na origem (D-38) |
 
 ## O que a ingestão tira, contando
 

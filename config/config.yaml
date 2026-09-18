@@ -109,6 +109,14 @@ fontes:
       LOGIN_MERCANET: ["LOGIN MERCANET", "LOGIN MERCATNET"]   # a 2ª grafia é a do arquivo de 17/09/2026
       NOME_MERCANET: ["NOME MERCANET"]
 
+  clientes:                         # D-38 · cadastro de nomes das lojas do Projeto Rota · 1 linha = 1 cliente · mantido pelo Douglas
+    arquivo: bases/Estrutura/Clientes_Rota.xlsx
+    obrigatorio: false              # false = arquivo ausente ou loja da rota sem nome nele gera AVISO; true = aborta
+    aba: null                       # null = a primeira aba da planilha
+    colunas:
+      "Cód. cliente": COD_CLIENTE
+      "Nome Cliente": NOME_CLIENTE
+
 calendario:
   # Dia útil = segunda a sexta fora desta lista. Serve ao rótulo dos dias e à contagem "dia X de N"; o planejado vem SEMPRE das
   # datas da rota, não daqui. Parâmetro declarado (o protótipo 2 também trata 07/09/2026 como não útil) — manter atualizado.
@@ -126,6 +134,12 @@ regras:                             # D-02: regras do protótipo 2 (conferidas e
     # Valores aceitos: segunda, terca, quarta, quinta, sexta, sabado, domingo e feriado (= as datas de `calendario.feriados`).
     # Para rever a regra basta editar a lista: [] = todo dia conta; [sabado, domingo] = feriado volta a contar.
     dias_que_nao_contam: [sabado, domingo, feriado]
+  nome_cliente:
+    # D-38 (18/09/2026): de onde vem o nome da loja, em ordem de prioridade — vale a primeira fonte que tiver o nome.
+    # clientes = bases/Estrutura/Clientes_Rota.xlsx (todas as lojas; nome cortado em 35 caracteres na origem)
+    # rota     = coluna `Nome cliente` da rota mensal, se um dia vier · mercanet = pedido ou check-in mais recente (nome completo)
+    # Para rever: reordenar a lista (ex.: [mercanet, clientes] mostra o nome completo quando existir). Fonte fora da lista não é usada.
+    precedencia: [clientes, rota, mercanet]
   canais_sem_controle_de_visita: [TELEFONE]    # acompanhados só por pedido (D-02)
   pedido:
     situacoes_excluidas: ["Cancelado", "Bloqueado"]   # D-33 (18/09/2026): Bloqueado NÃO conta como pedido tirado (o protótipo 2 contava)

@@ -80,6 +80,25 @@ def test_visita_sem_par_conta_mas_nao_tem_minutos():
     assert v3.N_CHECKINS == 0 and v3.CONTA_COMO_VISITA and loja("3").VISITA_NO_DIA      # só check-out conta (regra do protótipo, P-12)
 
 
+def test_nome_da_loja_segue_a_precedencia_do_config():
+    """D-38. O cadastro de nomes vence o Mercanet; a loja que não está nele fica com o nome do Mercanet; trocar a lista troca o nome."""
+    from rota.utils.config import CFG
+    rota, ci, ped = (M["FATO_ROTA_PLANEJADA"][["COD_CLIENTE", "DATA_ROTA"]], _ci([("AAA", "1", "2026-10-05 09:00", "CHECKIN")]),
+                     pd.DataFrame({"COD_CLIENTE": ["2"], "NOME_CLIENTE": ["PEDIDO DOIS LTDA"], "DATA_EMISSAO": pd.to_datetime(["2026-10-05"])}))
+    cad = pd.DataFrame({"COD_CLIENTE": ["1", "3"], "NOME_CLIENTE": ["CADASTRO UM", "CADASTRO TRES"]})
+    antes = CFG["regras"]["nome_cliente"]["precedencia"]
+    try:
+        CFG["regras"]["nome_cliente"]["precedencia"] = ["clientes", "rota", "mercanet"]
+        n = modelo._nomes(rota, ci, ped, cad).set_index("COD_CLIENTE")
+        assert (n.NOME_CLIENTE["1"], n.NOME_ORIGEM["1"]) == ("CADASTRO UM", "clientes") and (n.NOME_CLIENTE["2"], n.NOME_ORIGEM["2"]) == ("PEDIDO DOIS LTDA", "mercanet")
+        CFG["regras"]["nome_cliente"]["precedencia"] = ["mercanet", "clientes"]
+        n = modelo._nomes(rota, ci, ped, cad).set_index("COD_CLIENTE")
+        assert n.NOME_CLIENTE["1"] == "LOJA 1" and n.NOME_CLIENTE["3"] == "CADASTRO TRES"
+        assert len(modelo._nomes(rota, ci, ped, None)) == 2                     # sem o cadastro, segue só com o Mercanet
+    finally:
+        CFG["regras"]["nome_cliente"]["precedencia"] = antes
+
+
 def test_evento_em_fim_de_semana_nao_conta_como_visita():
     """D-32 (config: sabado, domingo, feriado). 10/10/2026 é sábado, 11/10 é domingo, 12/10 é segunda."""
     v = visitas.gerar(_ci([("AAA", "1", "2026-10-10 09:00", "CHECKIN"), ("AAA", "1", "2026-10-10 09:30", "CHECKOUT"),

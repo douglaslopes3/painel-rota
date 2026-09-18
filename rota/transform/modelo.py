@@ -46,7 +46,26 @@ def _ligar_hierarquia(rota: pd.DataFrame, hier: pd.DataFrame | None) -> pd.DataF
     return r
 
 
-def construir(rota: pd.DataFrame, checkins: pd.DataFrame, pedidos: pd.DataFrame, hier: pd.DataFrame | None) -> dict[str, pd.DataFrame]:
+def _nomes(rota: pd.DataFrame, checkins: pd.DataFrame, pedidos: pd.DataFrame, clientes: pd.DataFrame | None) -> pd.DataFrame:
+    """1 nome por cliente, pela ordem de `regras.nome_cliente.precedencia` (D-38): vale a primeira fonte que tiver o nome.
+    Dentro do Mercanet (pedido e check-in) vale o registro mais recente; dentro da rota, o mês mais recente."""
+    merc = pd.concat([pedidos[["COD_CLIENTE", "NOME_CLIENTE", "DATA_EMISSAO"]].rename(columns={"DATA_EMISSAO": "QUANDO"}),
+                      checkins[["COD_CLIENTE", "NOME_CLIENTE", "DATA_HORA"]].rename(columns={"DATA_HORA": "QUANDO"})]).sort_values("QUANDO")
+    fontes = {"clientes": clientes, "mercanet": merc,
+              "rota": rota.sort_values("DATA_ROTA") if "NOME_CLIENTE" in rota.columns else None}
+    ordem = list(CFG["regras"]["nome_cliente"]["precedencia"])
+    invalidas = sorted(set(ordem) - set(fontes))
+    if invalidas:
+        raise ValueError(f"regras.nome_cliente.precedencia: fonte(s) invalida(s) {invalidas} (use {sorted(fontes)})")
+    partes = [fontes[f][["COD_CLIENTE", "NOME_CLIENTE"]].dropna(subset=["NOME_CLIENTE"]).drop_duplicates("COD_CLIENTE", keep="last").assign(NOME_ORIGEM=f)
+              for f in ordem if fontes[f] is not None]
+    if not partes:
+        return pd.DataFrame(columns=["COD_CLIENTE", "NOME_CLIENTE", "NOME_ORIGEM"])
+    return pd.concat(partes, ignore_index=True).drop_duplicates("COD_CLIENTE", keep="first")
+
+
+def construir(rota: pd.DataFrame, checkins: pd.DataFrame, pedidos: pd.DataFrame, hier: pd.DataFrame | None,
+              clientes: pd.DataFrame | None = None) -> dict[str, pd.DataFrame]:
     regras = CFG["regras"]
     cal = calendario.gerar(rota)
 
@@ -79,11 +98,7 @@ def construir(rota: pd.DataFrame, checkins: pd.DataFrame, pedidos: pd.DataFrame,
     fp["CONTROLA_VISITA"] = fp["CONTROLA_VISITA"].astype("boolean")
 
     # ---------------------------------------------------------------- dimensões
-    da_rota = (rota[["COD_CLIENTE", "NOME_CLIENTE", "DATA_ROTA"]].rename(columns={"DATA_ROTA": "QUANDO"}).assign(QUANDO=lambda d: d["QUANDO"] + pd.Timedelta(days=3650))
-               if "NOME_CLIENTE" in rota.columns else pd.DataFrame(columns=["COD_CLIENTE", "NOME_CLIENTE", "QUANDO"]))       # o nome da rota, quando existe, vence
-    nomes = pd.concat([da_rota, pedidos[["COD_CLIENTE", "NOME_CLIENTE", "DATA_EMISSAO"]].rename(columns={"DATA_EMISSAO": "QUANDO"}),
-                       checkins[["COD_CLIENTE", "NOME_CLIENTE", "DATA_HORA"]].rename(columns={"DATA_HORA": "QUANDO"})])
-    nomes = nomes.dropna(subset=["NOME_CLIENTE"]).sort_values("QUANDO").drop_duplicates("COD_CLIENTE", keep="last")[["COD_CLIENTE", "NOME_CLIENTE"]]
+    nomes = _nomes(rota, checkins, pedidos, clientes)
     dc = pd.DataFrame({"COD_CLIENTE": sorted(set(rota["COD_CLIENTE"]) | set(checkins["COD_CLIENTE"]) | set(pedidos["COD_CLIENTE"]))})
     dc = dc.merge(nomes, on="COD_CLIENTE", how="left")
     ult_rota = rota.sort_values("ANO_MES").drop_duplicates("COD_CLIENTE", keep="last")[["COD_CLIENTE", "CIDADE"]]

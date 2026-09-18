@@ -29,6 +29,7 @@ Qualquer falha termina com `PIPELINE ABORTADO`, exit code 1, dizendo o arquivo, 
 | `Mercanet/` | `*.csv` | timeline de check-in/check-out | extração acumulada do mês: **substituir** o arquivo do mês corrente todo dia |
 | `Pedidos/` | `*.csv` | consulta de pedidos (canal Atacado inteiro), com rodapé de totais | idem |
 | `Estrutura/` | `DePara_Estrutura_Rota.xlsx`, aba `Hierarquia` | hierarquia N1–N4 do Projeto Rota (formato da `Hierarquia_Consolidada` do Gerencial) + login do Mercanet; as visões saem de N1, N2 e N3 | mantido pelo Douglas / Atacado; 21 das 22 posições com login, a 121 `[VAGO]` sem (D-30) |
+| `Estrutura/` | `Clientes_Rota.xlsx` | nome de TODAS as lojas da rota (código + nome); vence o nome do Mercanet (D-38) | mantido pelo Douglas; atualizar quando entrar loja nova na rota |
 
 Regras de operação:
 

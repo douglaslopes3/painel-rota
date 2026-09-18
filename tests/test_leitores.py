@@ -22,7 +22,7 @@ for _f in (sys.stdout, sys.stderr):
     except (AttributeError, OSError):
         pass
 
-from rota.extract import checkins, comum, estrutura, pedidos, rota_mensal  # noqa: E402
+from rota.extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal  # noqa: E402
 from rota.utils import texto as T  # noqa: E402
 from rota.utils.config import RAIZ  # noqa: E402
 
@@ -207,6 +207,24 @@ def test_rota_com_codigo_do_vendedor():
     assert x["com_codigo_vendedor"] and df["COD_VENDEDOR"].tolist() == ["101", "101"]
     d.loc[1, "Cód. vendedor"] = None; d.to_excel(a, sheet_name="Base de Clientes", index=False)
     assert aborta(rota_mensal.ler_arquivo, a)                                # coluna presente tem de vir completa
+
+
+# ------------------------------------------------------------------ cadastro de nomes (D-38)
+def _cli(nome: str, linhas: list[tuple]) -> Path:
+    a = TMP / nome
+    pd.DataFrame(linhas, columns=["Cód. cliente", "Nome Cliente"]).to_excel(a, index=False)
+    return a
+
+
+def test_clientes_le_codigo_e_nome_e_tolera_linha_repetida_igual():
+    df, x = clientes.ler_arquivo(_cli("c_ok.xlsx", [(1010846.0, " loja  um "), ("0001010847", "LOJA DOIS"), (1010847, "LOJA DOIS")]))
+    assert df[["COD_CLIENTE", "NOME_CLIENTE"]].values.tolist() == [["1010846", "LOJA UM"], ["1010847", "LOJA DOIS"]]
+    assert (x["clientes"], x["repetidas_iguais"], x["maior_nome"]) == (2, 1, 9)
+
+
+def test_clientes_mesmo_codigo_com_dois_nomes_ou_sem_codigo_aborta():
+    assert aborta(clientes.ler_arquivo, _cli("c_dup.xlsx", [(1, "LOJA A"), (1, "LOJA B")]))
+    assert aborta(clientes.ler_arquivo, _cli("c_sem.xlsx", [(None, "LOJA A"), (2, "LOJA B")]))
 
 
 if __name__ == "__main__":
