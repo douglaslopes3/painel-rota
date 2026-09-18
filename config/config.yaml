@@ -57,7 +57,7 @@ fontes:
       "EVENTO TIME LINE": EVENTO
     # NÃO vão para o staging (minimização, Etapa 7): ENDEREÇO CLIENTE, DESCRIÇÃO TIMELINE, LATITUDE e LONGITUDE (truncadas em inteiro na origem)
     eventos_esperados: [CHECKIN, CHECKOUT]
-    logins_ignorados:               # descartados na leitura, contados no log. A confirmar pelo Gui na aba Logins_sem_executivo do de-para (P-01)
+    logins_ignorados:               # descartados na leitura, contados no log. Confirmado em 18/09/2026 (D-30)
       TESTERTM: "usuário de teste (1 check-in em 01/09/2026, no cliente 1012816)"
 
   pedidos:                          # Mercanet · consulta de pedidos · 1 linha = 1 pedido · canal Atacado inteiro · acumulada do mês

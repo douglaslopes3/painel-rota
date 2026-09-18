@@ -15,7 +15,7 @@ qualidade Q1–Q16, em `Fase0_Diagnostico_Roadmap.html`, Etapa 4.
 | Fonte | Sai | Quantidade (17/09) | Por quê |
 |---|---|---:|---|
 | Check-ins | linha 100% repetida | 1 | duplicidade exata da extração |
-| Check-ins | eventos do login `TESTERTM` | 1 | usuário de teste, declarado em `config → fontes.checkins.logins_ignorados` (a confirmar, P-01) |
+| Check-ins | eventos do login `TESTERTM` | 1 | usuário de teste, declarado em `config → fontes.checkins.logins_ignorados` (confirmado em 18/09, D-30) |
 | Pedidos | rodapé de totais | 1 | vira o gabarito de reconciliação |
 
 Resultado: **3.068 eventos · 15 logins**, **2.468 pedidos** (R$ 17.734.952,08 · 208.960 de quantidade · R$ 29.503.050,80
