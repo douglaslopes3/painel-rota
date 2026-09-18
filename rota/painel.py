@@ -20,8 +20,8 @@ from . import metricas
 from .utils.config import CFG
 
 COLS = ["ROTEIRO", "VISITADAS_NO_DIA", "FORA_DO_ROTEIRO", "VISITADAS_ATE_A_DATA", "COM_PEDIDO", "VISITA_E_PEDIDO", "SEM_CONTATO",
-        "QTD_SOLICITADA", "TEL_ROTEIRO", "TEL_COM_PEDIDO", "TEL_QTD_SOLICITADA", "VISITAS_COM_PAR", "MINUTOS_SOMA"]
-_DECIMAIS = {"QTD_SOLICITADA", "TEL_QTD_SOLICITADA", "MINUTOS_SOMA"}
+        "VALOR_PEDIDOS", "TEL_ROTEIRO", "TEL_COM_PEDIDO", "TEL_VALOR_PEDIDOS", "VISITAS_COM_PAR", "MINUTOS_SOMA"]      # D-35: valor no painel; quantidade fora
+_DECIMAIS = {"VALOR_PEDIDOS", "TEL_VALOR_PEDIDOS", "MINUTOS_SOMA"}
 _SOMAVEIS = [c for c in COLS if c not in _DECIMAIS]
 _MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
 
@@ -53,8 +53,8 @@ def preparar(m: dict[str, pd.DataFrame], lojas: pd.DataFrame, ate: pd.Timestamp)
 
     vis = {c: [[int(r.DATA.day), None if pd.isna(r.MINUTOS_EM_LOJA) else round(float(r.MINUTOS_EM_LOJA), 1), int(r.N_CHECKINS)] for r in g.sort_values("DATA").itertuples()]
            for c, g in fv[fv["NA_ROTA"] & fv["CONTA_COMO_VISITA"]].groupby("COD_CLIENTE")}
-    ped = fp[fp["NA_ROTA"] & fp["VALIDO"]].groupby(["COD_CLIENTE", "DATA_EMISSAO"]).agg(Q=("QTD_SOLICITADA", "sum"), N=("PEDIDO", "size")).reset_index()
-    ped = {c: [[int(r.DATA_EMISSAO.day), round(float(r.Q), 1), int(r.N)] for r in g.itertuples()] for c, g in ped.groupby("COD_CLIENTE")}
+    ped = fp[fp["NA_ROTA"] & fp["VALIDO"]].groupby(["COD_CLIENTE", "DATA_EMISSAO"]).agg(V=("VALOR", "sum"), N=("PEDIDO", "size")).reset_index()
+    ped = {c: [[int(r.DATA_EMISSAO.day), round(float(r.V), 2), int(r.N)] for r in g.itertuples()] for c, g in ped.groupby("COD_CLIENTE")}
     return {"ate": ate, "mes": mes, "L": L, "dias_rota": dias_rota, "agg": agg, "jornada_dia": metricas.jornada_dia(fv), "vis": vis, "ped": ped,
             "checkins_ate": fv["DATA"].max() if len(fv) else pd.NaT, "pedidos_ate": fp["DATA_EMISSAO"].max() if len(fp) else pd.NaT}
 
@@ -71,7 +71,7 @@ def montar(P: dict, dv: pd.DataFrame, visao: dict, atualizado_em: str) -> dict:
 
     def tabela(k: pd.DataFrame) -> list[list]:
         k = k.reindex(list(i_vend)).fillna(0)
-        return [[round(float(r[c]), 1) if c in _DECIMAIS else int(r[c]) for c in COLS] for r in k.to_dict("records")]
+        return [[round(float(r[c]), 2) if c in _DECIMAIS else int(r[c]) for c in COLS] for r in k.to_dict("records")]
 
     agg = {e: [tabela(k) for k in P["agg"][e]] for e in ("dia", "sem", "mes")}
     horarios = []
@@ -91,13 +91,15 @@ def montar(P: dict, dv: pd.DataFrame, visao: dict, atualizado_em: str) -> dict:
         "meta": {"visao": visao["ROTULO"], "nome": visao["NOME"].title(), "nivel": visao["NIVEL"], "mes": f"{_MESES[ate.month - 1]}/{ate.year}",
                  "dados_ate": f"{ate:%Y-%m-%d}", "checkins_ate": None if pd.isna(ci) else f"{ci:%d/%m/%Y}", "pedidos_ate": None if pd.isna(pe) else f"{pe:%d/%m/%Y}",
                  "atualizado_em": atualizado_em, "criterio_pedido": CFG["regras"]["pedido"]["criterio"],
-                 "faixas": CFG["painel"]["faixas"], "rotulo_quantidade": CFG["painel"]["rotulo_quantidade"]},
+                 "faixas": CFG["painel"]["faixas"], "rotulo_valor": CFG["painel"]["rotulo_valor"],
+                 "situacoes_excluidas": list(CFG["regras"]["pedido"]["situacoes_excluidas"]),
+                 "dias_que_nao_contam": [{"sabado": "sábado", "terca": "terça"}.get(x, x) for x in (CFG["regras"]["visita"].get("dias_que_nao_contam") or [])]},
         "dias": [{"d": f"{r.DATA:%Y-%m-%d}", "dm": int(r.DATA.day), "lab": f"{r.DATA:%d/%m}", "dow": r.DIA_SEMANA, "n": int(r.N_DIA_CICLO),
                   "futuro": bool(r.DATA > ate)} for r in P["dias_rota"].itertuples(index=False)],
         "sups": [{"cod": r.N3_COD, "nome": r.N3_NOME.title()} for r in sups.itertuples(index=False)],
         "vend": [{"cod": r.N4_COD, "nome": r.N4_NOME.title(), "sup": i_sup[r.N3_COD], "app": bool(r.USA_APP), "cart": int(r.CLIENTES)} for r in vend.itertuples(index=False)],
         "cols": COLS, "agg": agg, "horarios": horarios,
-        "lojas_cols": ["cod", "nome", "cidade", "vend", "dia", "pres", "vis[dia_do_mes, min, n_checkins]", "ped[dia_do_mes, qtd, n_pedidos]"], "lojas": lj,
+        "lojas_cols": ["cod", "nome", "cidade", "vend", "dia", "pres", "vis[dia_do_mes, min, n_checkins]", "ped[dia_do_mes, valor, n_pedidos]"], "lojas": lj,
     }
 
 

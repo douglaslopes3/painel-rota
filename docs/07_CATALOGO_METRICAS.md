@@ -16,8 +16,8 @@ ROTA que entra**: dia = [d]; semana = da segunda-feira até d; mês = do dia 1 a
 | **Com pedido (D-25)** | lojas do roteiro com pedido válido **no mês, até o último dia do período** (critério `mes`). Critério `janela` (protótipo 2): pedido na DATA_ROTA ou até 1 dia corrido depois | pedidos |
 | **Visita + pedido** · **Sem contato** | critério `mes`: visita em qualquer dia do mês até a data E pedido no mês · nem uma nem outro. Critério `janela`: no dia da rota | — |
 | **% positivação** · **% aderência** | Com pedido ÷ Roteiro · Visitadas até a data (qualquer dia do mês) ÷ Roteiro — no escopo mês é a Aderência no mês (D-03) | — |
-| **Valor dos pedidos** | Σ `Valor total do pedido` dos pedidos válidos contados — fica na camada curada, **não vai para o painel** (D-04, D-26) | pedidos |
-| **Quantidade solicitada** ("volume", D-04) | Σ `Quantidade solicitada` dos mesmos pedidos — **unidade não declarada (P-02)** | pedidos |
+| **Valor dos pedidos** (D-35) | Σ `Valor total do pedido` (valor bruto) dos pedidos válidos contados — **é o valor mostrado no painel**, em todas as visões | pedidos |
+| **Quantidade solicitada** | Σ `Quantidade solicitada` dos mesmos pedidos — unidade não declarada; fica na camada curada, **fora do painel** (D-35) | pedidos |
 | **Telefone: roteiro / com pedido / valor** | as mesmas contas para as lojas TELEFONE, que não têm controle de visita | rota + pedidos |
 | **1ª entrada · Última saída** | menor check-in e maior check-out do dia, pelo LOGIN do vendedor | check-ins |
 | **Tempo médio em loja** | média dos MINUTOS_EM_LOJA das visitas do dia que têm par | check-ins |
@@ -29,20 +29,21 @@ Também ficam na LOJA_MES, por loja: `DIAS_VISITADOS`, `PRIMEIRA/ULTIMA_VISITA`,
 Fora do escopo desta fase (D-09 / GAPs): receita líquida, volume em kg, meta e % da meta, tempo de deslocamento, contato
 telefônico, radar "Minha equipe", "Lojas em aberto".
 
-## Regras revistas em 18/09/2026 (D-31 a D-34)
+## Regras revistas em 18/09/2026 (D-31 a D-36)
 
-Visita: qualquer check-in ou check-out do dia conta, sem duração mínima (D-31, D-34), **exceto em sábado e domingo** (D-32).
+Visita: qualquer check-in ou check-out do dia conta, sem duração mínima (D-31, D-34), **exceto em sábado, domingo e feriado** (D-32 — lista
+`regras.visita.dias_que_nao_contam`). Check-in em cliente que não está na rota do mês não entra em indicador (D-36).
 Pedido válido: situação diferente de **Cancelado e Bloqueado** (D-33). Efeito na visão do head, mês até 16/09/2026:
 
 | Indicador | Antes | Depois |
 |---|---:|---:|
-| Fora do roteiro | 482 | 480 |
-| Visitadas até a data · Aderência no mês | 501 · 36,6% | 501 · 36,6% |
+| Fora do roteiro | 482 | 479 |
+| Visitadas até a data · Aderência no mês | 501 · 36,6% | 500 · 36,5% |
 | Com pedido · % positivação | 238 · 17,4% | 228 · 16,7% |
-| Visita + pedido · Sem contato | 94 · 723 | 88 · 727 |
-| Quantidade solicitada | 12.416 | 11.961 |
+| Visita + pedido · Sem contato | 94 · 723 | 88 · 728 |
+| Valor dos pedidos (presencial · telefone) | fora do painel | R$ 1.578.081 · R$ 62.062 |
 
-As tabelas abaixo são o retrato do aceite da Fase 2, com as regras do protótipo 2 (Bloqueado e fim de semana contando). Com as
+As tabelas abaixo são o retrato do aceite da Fase 2, com as regras do protótipo 2 (Bloqueado, fim de semana e feriado contando). Com as
 regras atuais, `ferramentas/reconciliar_prototipo2.py` passa a apontar diferenças — deliberadas, por D-32 e D-33.
 
 ## Reconciliação com o protótipo 2 (aceite da Fase 2)

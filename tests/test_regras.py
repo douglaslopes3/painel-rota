@@ -81,10 +81,35 @@ def test_visita_sem_par_conta_mas_nao_tem_minutos():
 
 
 def test_evento_em_fim_de_semana_nao_conta_como_visita():
-    """D-32. 10/10/2026 é sábado, 11/10 é domingo, 12/10 é segunda."""
+    """D-32 (config: sabado, domingo, feriado). 10/10/2026 é sábado, 11/10 é domingo, 12/10 é segunda."""
     v = visitas.gerar(_ci([("AAA", "1", "2026-10-10 09:00", "CHECKIN"), ("AAA", "1", "2026-10-10 09:30", "CHECKOUT"),
                            ("AAA", "2", "2026-10-11 09:00", "CHECKIN"), ("AAA", "3", "2026-10-12 09:00", "CHECKIN")]))
     assert len(v) == 3 and list(v.sort_values("DATA").CONTA_COMO_VISITA) == [False, False, True]      # a linha fica, só não conta
+    assert list(v.sort_values("DATA").DIA_NAO_CONTA) == [True, True, False]
+
+
+def test_feriado_nao_conta_e_a_lista_do_config_muda_a_regra():
+    """D-32. A regra é a lista `regras.visita.dias_que_nao_contam`: esvaziar a lista devolve a contagem, sem mexer em código."""
+    from rota.utils.config import CFG
+    ev = _ci([("AAA", "1", "2026-10-12 09:00", "CHECKIN"), ("AAA", "2", "2026-10-13 09:00", "CHECKIN"), ("AAA", "3", "2026-10-10 09:00", "CHECKIN")])
+    regra, feriados = CFG["regras"]["visita"]["dias_que_nao_contam"], CFG["calendario"]["feriados"]
+    try:
+        CFG["calendario"]["feriados"] = ["2026-10-12"]                       # segunda-feira, feriado
+        CFG["regras"]["visita"]["dias_que_nao_contam"] = ["sabado", "domingo", "feriado"]
+        assert list(visitas.gerar(ev).sort_values("DATA").CONTA_COMO_VISITA) == [False, False, True]      # sáb 10, feriado 12, ter 13
+        CFG["regras"]["visita"]["dias_que_nao_contam"] = ["sabado", "domingo"]
+        assert list(visitas.gerar(ev).sort_values("DATA").CONTA_COMO_VISITA) == [False, True, True]
+        CFG["regras"]["visita"]["dias_que_nao_contam"] = []
+        assert visitas.gerar(ev).CONTA_COMO_VISITA.all()
+        CFG["regras"]["visita"]["dias_que_nao_contam"] = ["sabadu"]
+        try:
+            visitas.gerar(ev)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("valor invalido na lista passou sem erro")
+    finally:
+        CFG["regras"]["visita"]["dias_que_nao_contam"], CFG["calendario"]["feriados"] = regra, feriados
 
 
 def test_visita_fora_do_dia_nao_e_visita_no_dia_mas_e_fora_do_roteiro():
@@ -162,8 +187,8 @@ def test_painel_so_leva_a_visao_e_os_cards_fecham_com_a_lista():
     assert [d["lab"] for d in J["dias"]] == ["05/10", "06/10", "09/10"] and [d["futuro"] for d in J["dias"]] == [False, False, True]
     C = {c: i for i, c in enumerate(J["cols"])}
     mes_0610 = J["agg"]["mes"][1][0]                                          # mês até 06/10, vendedor 101
-    assert (mes_0610[C["ROTEIRO"]], mes_0610[C["VISITADAS_NO_DIA"]], mes_0610[C["COM_PEDIDO"]], mes_0610[C["QTD_SOLICITADA"]]) == (3, 2, 1, 10.0)      # sem o Bloqueado (D-33)
-    assert "VALOR_PEDIDOS" not in J["cols"] and J["horarios"][0][0] == ["09:00", "15:05"]      # D-04: valor não vai para o painel
+    assert (mes_0610[C["ROTEIRO"]], mes_0610[C["VISITADAS_NO_DIA"]], mes_0610[C["COM_PEDIDO"]], mes_0610[C["VALOR_PEDIDOS"]]) == (3, 2, 1, 100.0)      # sem o Bloqueado (D-33)
+    assert "QTD_SOLICITADA" not in J["cols"] and J["horarios"][0][0] == ["09:00", "15:05"]     # D-35: o painel leva o valor; a quantidade saiu
 
 
 def test_vazamento_e_detectado():

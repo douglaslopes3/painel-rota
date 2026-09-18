@@ -49,7 +49,7 @@ visita (1 por cliente × dia) e o pareamento check-in/check-out são regra de ne
 | DATA_EMISSAO · DATA_ENTREGA_ESTIMADA · DATA_FATURAMENTO | data | idem | faturamento só preenchido em Faturado / Parcial / Fatur.+Canc. |
 | SITUACAO | texto | `Situação` | Aberto · Fatur. Parcial · Faturado · Fatur. + Canc. · Bloqueado · Cancelado (valor novo = aviso) |
 | VALOR_PEDIDO | decimal | `Valor total do pedido` | reconciliado com o rodapé |
-| QTD_SOLICITADA | decimal | `Quantidade solicitada` | reconciliado; unidade não declarada (P-02) |
+| QTD_SOLICITADA | decimal | `Quantidade solicitada` | reconciliado; unidade não declarada; fica na camada curada, fora do painel (D-35) |
 | VALOR_BRUTO · VALOR_DESCONTO | decimal | `Valor total bruto` · `Valor desconto` | bruto reconciliado; bruto − desconto ≠ valor do pedido em 155 linhas (Bloqueado/Cancelado na maioria) |
 | REPRESENTANTE · CIDADE · UF | texto | idem | `REPRESENTANTE` não identifica o executivo |
 | ARQUIVO_ORIGEM | texto | — | |

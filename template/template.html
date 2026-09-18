@@ -156,6 +156,7 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
 var D=null, C={}, DAY=0, SUP=-1, ESC='dia', VIEW='tabela', SORT={k:'ROTEIRO',dir:-1}, FILT='todas', CANAL='todos', OPEN={}, ALLOPEN=false;
 
 function n0(v){return Math.round(v).toLocaleString('pt-BR');}
+function brl(v){return 'R$ '+n0(v);}
 function n1(v){return (v===null||v===undefined||isNaN(v))?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});}
 function pct(a,b){return b?100*a/b:null;}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -199,24 +200,24 @@ function renderTop(){var m=D.meta;
   document.getElementById('legend').innerHTML=[['ok','✓','Visita + pedido'],['mid','◑','Só visita'],['alt','$','Só pedido'],['none','·','Sem contato']].map(function(x){
     return '<li><span class="mark '+x[0]+'">'+x[1]+'</span>'+x[2]+'</li>';}).join('');
   document.getElementById('foot').innerHTML='Painel de Rota · Projeto Rota (Atacado) · '+esc(m.visao)+'<br>'+
-    'Visita = cliente com check-in ou check-out no dia (vários registros no mesmo dia contam uma vez). <b>Aderência</b> = lojas com roteiro já vencido que receberam visita no mês, em qualquer dia. '+
-    '<b>Com pedido</b> = loja com pedido no mês até a data (pedidos cancelados ficam fora). Lojas atendidas por telefone não têm controle de visita: são acompanhadas pelo pedido.<br>'+
-    esc(m.rotulo_quantidade)+' = soma da coluna de mesmo nome da consulta de pedidos (unidade conforme o Mercanet).';
+    'Visita = cliente com check-in ou check-out no dia (vários registros no mesmo dia contam uma vez)'+(m.dias_que_nao_contam.length?'; registros em '+esc(m.dias_que_nao_contam.join(', '))+' não contam':'')+'. <b>Aderência</b> = lojas com roteiro já vencido que receberam visita no mês, em qualquer dia. '+
+    '<b>Com pedido</b> = loja com pedido no mês até a data (ficam fora os pedidos: '+esc(m.situacoes_excluidas.join(', ').toLowerCase())+'). Lojas atendidas por telefone não têm controle de visita: são acompanhadas pelo pedido.<br>'+
+    esc(m.rotulo_valor)+' = soma do valor bruto (coluna “Valor total do pedido” da consulta de pedidos do Mercanet) dos pedidos válidos do mês, até a data.';
 }
 
 /* ---------- cards ---------- */
 function hero(lab,val,det,c,bar){return '<div class="hero'+(c?' '+c:'')+'"><div class="lab">'+lab+'</div><div class="val">'+val+'</div><div class="det">'+det+'</div>'+
   (bar===undefined||bar===null?'':'<div class="bar"><i style="width:'+Math.max(0,Math.min(100,bar))+'%"></i></div>')+'</div>';}
-function cards(escopo){var s=derivar(somar(escopo,DAY,vendDaVisao())),fut=D.dias[DAY].futuro,q=D.meta.rotulo_quantidade,h=[];
+function cards(escopo){var s=derivar(somar(escopo,DAY,vendDaVisao())),fut=D.dias[DAY].futuro,q=D.meta.rotulo_valor,h=[];
   h.push(hero('Lojas no roteiro',n0(s.ROTEIRO),escopo==='dia'?'com visita presencial planejada no dia':'com data de rota no período','neu'));
   h.push(hero('Visitadas no dia da rota',n0(s.VISITADAS_NO_DIA)+' <small>/ '+n0(s.ROTEIRO)+'</small>',fut?'aguardando dados do dia':
     n1(s.P_VIS)+'% do roteiro · <b>'+n0(s.FORA_DO_ROTEIRO)+'</b> visitadas fora do dia · <b>'+n0(s.TOTAL_VISITADAS)+'</b> no total',heroCls(s.P_VIS),s.P_VIS));
   if(escopo==='mes') h.push(hero('Aderência no mês',n1(s.P_ADE)+'%',n0(s.VISITADAS_ATE_A_DATA)+' de '+n0(s.ROTEIRO)+' lojas com roteiro vencido já foram visitadas no mês',heroCls(s.P_ADE),s.P_ADE));
   else h.push(hero('Não atendidas no dia da rota',n0(s.NAO_ATENDIDAS),'<b>'+n0(s.VISITADAS_ATE_A_DATA)+'</b> das '+n0(s.ROTEIRO)+' já receberam visita no mês, em algum dia',s.NAO_ATENDIDAS?'red':'grn'));
   h.push(hero('Com pedido no mês',n0(s.COM_PEDIDO)+' <small>/ '+n0(s.ROTEIRO)+'</small>',n1(s.P_POS)+'% de positivação · '+n0(s.VISITA_E_PEDIDO)+' com visita e pedido · '+n0(s.SEM_CONTATO)+' sem contato','',s.P_POS));
-  h.push(hero(q,n0(s.QTD_SOLICITADA),'nos pedidos do mês dessas lojas','neu'));
+  h.push(hero(esc(q),brl(s.VALOR_PEDIDOS),'valor bruto dos pedidos do mês dessas lojas','neu'));
   h.push(hero('Tempo médio em loja',s.T_LOJA===null?'—':n0(s.T_LOJA)+' <small>min</small>',n0(s.VISITAS_COM_PAR)+' visitas com check-in e check-out no período','neu'));
-  if(s.TEL_ROTEIRO) h.push(hero('Telefone com pedido',n0(s.TEL_COM_PEDIDO)+' <small>/ '+n0(s.TEL_ROTEIRO)+'</small>',n1(s.P_TEL)+'% · '+esc(q).toLowerCase()+' '+n0(s.TEL_QTD_SOLICITADA),'',s.P_TEL));
+  if(s.TEL_ROTEIRO) h.push(hero('Telefone com pedido',n0(s.TEL_COM_PEDIDO)+' <small>/ '+n0(s.TEL_ROTEIRO)+'</small>',n1(s.P_TEL)+'% · '+brl(s.TEL_VALOR_PEDIDOS),'',s.P_TEL));
   return h.join('');}
 function semanaIni(){var d=new Date(D.dias[DAY].d+'T12:00:00');var dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);var m=D.dias[DAY].d.slice(5,7);
   if(String(d.getMonth()+1).padStart(2,'0')!==m)return '01/'+m;return String(d.getDate()).padStart(2,'0')+'/'+m;}
@@ -229,7 +230,7 @@ function renderCards(){var d=D.dias[DAY];
 
 /* ---------- tabela e gráfico ---------- */
 var COLS=[{k:'nome',l:'',cls:'l'},{k:'ROTEIRO',l:'Roteiro'},{k:'VISITADAS_NO_DIA',l:'Visit. no dia'},{k:'P_VIS',l:'% no dia'},{k:'FORA_DO_ROTEIRO',l:'Fora do dia'},
- {k:'P_ADE',l:'Aderência'},{k:'COM_PEDIDO',l:'Com pedido'},{k:'P_POS',l:'Positivação'},{k:'QTD_SOLICITADA',l:'Qtd. solic.'},{k:'T_LOJA',l:'T. loja'},
+ {k:'P_ADE',l:'Aderência'},{k:'COM_PEDIDO',l:'Com pedido'},{k:'P_POS',l:'Positivação'},{k:'VALOR_PEDIDOS',l:'Valor pedidos'},{k:'T_LOJA',l:'T. loja'},
  {k:'h0',l:'1ª entrada',dia:1},{k:'h1',l:'Última saída',dia:1},{k:'TEL_COM_PEDIDO',l:'Tel. c/ pedido',tel:1}];
 function colsAtivas(rows){var temTel=rows.some(function(r){return r.TEL_ROTEIRO>0;});
   return COLS.filter(function(c){return (!c.dia||(ESC==='dia'&&!porSupervisor()))&&(!c.tel||temTel);});}
@@ -243,6 +244,7 @@ function cel(r,c){var k=c.k,v=valor(r,k);
   if(k==='T_LOJA')return '<td>'+(v===null?'<span class="dim">—</span>':n0(v)+' min')+'</td>';
   if(k==='h0'||k==='h1')return '<td>'+(v||'<span class="dim">—</span>')+'</td>';
   if(k==='TEL_COM_PEDIDO')return '<td>'+(r.TEL_ROTEIRO?n0(v)+' <span class="dim">/ '+n0(r.TEL_ROTEIRO)+'</span>':'<span class="dim">—</span>')+'</td>';
+  if(k==='VALOR_PEDIDOS')return '<td>'+brl(v)+'</td>';
   return '<td>'+n0(v)+'</td>';}
 function renderTable(){var rows=linhas(ESC),cols=colsAtivas(rows);
   rows.sort(function(a,b){var x=valor(a,SORT.k),y=valor(b,SORT.k);if(typeof x==='string'||typeof y==='string')return String(x||'').localeCompare(String(y||''),'pt-BR')*SORT.dir;
@@ -253,14 +255,14 @@ function renderTable(){var rows=linhas(ESC),cols=colsAtivas(rows);
   document.getElementById('tabBody').innerHTML='<tr class="tot">'+cols.map(function(c){return cel(t,c);}).join('')+'</tr>'+rows.map(function(r){return '<tr>'+cols.map(function(c){return cel(r,c);}).join('')+'</tr>';}).join('');}
 function renderChart(){var rows=linhas(ESC).sort(function(a,b){return b.ROTEIRO-a.ROTEIRO;});
   if(!rows.length){document.getElementById('viewGrafico').innerHTML='<div class="empty">Sem linhas neste recorte.</div>';return;}
-  var maxQ=Math.max.apply(null,rows.map(function(r){return r.QTD_SOLICITADA;}))||1,maxT=Math.max.apply(null,rows.map(function(r){return r.T_LOJA||0;}))||1;
+  var maxQ=Math.max.apply(null,rows.map(function(r){return r.VALOR_PEDIDOS;}))||1,maxT=Math.max.apply(null,rows.map(function(r){return r.T_LOJA||0;}))||1;
   function bar(lab,w,c,txt){return '<div class="mbar-row"><div class="mbar-lab">'+lab+'</div><div class="mbar-track"><div class="mbar-fill '+c+'" style="width:'+Math.max(w?2:0,Math.min(100,w||0))+'%"></div></div><div class="mbar-val">'+txt+'</div></div>';}
   function fc(p){var c=cls(p);return c==='pos'?'grn':(c==='amber'?'amb':(c==='neg'?'red':''));}
   document.getElementById('viewGrafico').innerHTML=rows.map(function(r){return '<div class="routeblock"><div class="routehead"><b>'+esc(r.nome)+'</b><span class="dim">'+esc(r.sub)+(r.semApp?' · sem app':'')+'</span></div>'+
     bar('Visitadas no dia da rota',r.P_VIS,fc(r.P_VIS),n0(r.VISITADAS_NO_DIA)+' <span class="dim">/ '+n0(r.ROTEIRO)+' · '+n1(r.P_VIS)+'%</span>')+
     bar('Aderência (visitadas no mês)',r.P_ADE,fc(r.P_ADE),n0(r.VISITADAS_ATE_A_DATA)+' <span class="dim">/ '+n0(r.ROTEIRO)+' · '+n1(r.P_ADE)+'%</span>')+
     bar('Com pedido no mês',r.P_POS,'',n0(r.COM_PEDIDO)+' <span class="dim">/ '+n0(r.ROTEIRO)+' · '+n1(r.P_POS)+'%</span>')+
-    bar(esc(D.meta.rotulo_quantidade),100*r.QTD_SOLICITADA/maxQ,'',n0(r.QTD_SOLICITADA))+
+    bar(esc(D.meta.rotulo_valor),100*r.VALOR_PEDIDOS/maxQ,'',brl(r.VALOR_PEDIDOS))+
     bar('Tempo médio em loja',100*(r.T_LOJA||0)/maxT,'',r.T_LOJA===null?'<span class="dim">—</span>':n0(r.T_LOJA)+' min')+'</div>';}).join('');}
 function renderBody(){document.getElementById('tblTitulo').textContent=(porSupervisor()?'Supervisores':'Vendedores')+(SUP>=0?' · '+D.sups[SUP].nome:'')+' · '+({dia:'dia',sem:'semana',mes:'mês'})[ESC];
   document.getElementById('viewTabela').style.display=VIEW==='tabela'?'':'none';document.getElementById('viewGrafico').style.display=VIEW==='grafico'?'':'none';
@@ -292,7 +294,7 @@ function linhaLoja(l,st){var m=MK[st.s],det=[];
   else if(st.noDia)det.push('<b>visita no dia</b> · '+(st.noDia[1]===null?'sem check-out':n0(st.noDia[1])+' min em loja')+(st.noDia[2]>1?' · '+st.noDia[2]+' check-ins':''));
   else if(st.outra)det.push('<b>visitada em '+dd(st.outra[0])+'</b> (fora do dia da rota)');
   else det.push(D.dias[DAY].futuro?'aguardando dados do dia':'sem visita no mês até esta data');
-  if(st.peds.length)det.push('<b>pedido</b> '+st.peds.map(function(p){return dd(p[0])+' ('+n0(p[1])+')';}).join(', '));else det.push('sem pedido no mês até esta data');
+  if(st.peds.length)det.push('<b>pedido</b> '+st.peds.map(function(p){return dd(p[0])+' ('+brl(p[1])+')';}).join(', '));else det.push('sem pedido no mês até esta data');
   return '<div class="store"><span class="mark '+m[0]+'" title="'+m[2]+'">'+m[1]+'</span><div><div class="nm">'+(l[1]?esc(l[1]):'Cód. '+l[0]+' <span class="dim" style="font-weight:500">— sem razão social nas bases</span>')+
     (l[5]?'':'<span class="tag tel">telefone</span>')+'</div><div class="sb">'+esc(l[2])+(l[1]?' · cód. '+l[0]:'')+'</div><div class="sb">'+det.join(' &nbsp;|&nbsp; ')+'</div></div></div>';}
 

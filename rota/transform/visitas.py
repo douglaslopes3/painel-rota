@@ -7,8 +7,8 @@ Regras (D-02, conferidas contra os dados embutidos no protótipo 2 — 100% dos
 - 1 visita = 1 cliente × dia com pelo menos um evento de `regras.visita.
   eventos_que_contam`. Vários check-ins no mesmo cliente e dia são UMA visita;
   a quantidade fica em N_CHECKINS.
-- Com `conta_fim_de_semana: false` (D-32), o cliente × dia de sábado ou domingo
-  continua na tabela, mas não conta como visita.
+- Dia listado em `regras.visita.dias_que_nao_contam` (D-32: sábado, domingo e
+  feriado) continua na tabela, marcado em DIA_NAO_CONTA, mas não conta como visita.
 - Minutos em loja = o MAIOR par check-in -> check-out do dia. Cada check-out
   pareia com o ÚLTIMO check-in registrado antes dele (desde o check-out
   anterior). Par não atravessa a meia-noite. Sem par, MINUTOS_EM_LOJA é nulo.
@@ -18,6 +18,20 @@ from __future__ import annotations
 import pandas as pd
 
 from ..utils.config import CFG
+
+_DOW = {"segunda": 0, "terca": 1, "quarta": 2, "quinta": 3, "sexta": 4, "sabado": 5, "domingo": 6}
+
+
+def dia_nao_conta(datas: pd.Series) -> pd.Series:
+    """D-32 · verdadeiro para as datas em que o evento não conta como visita, conforme `regras.visita.dias_que_nao_contam`."""
+    lista = [str(x).strip().lower() for x in (CFG["regras"]["visita"].get("dias_que_nao_contam") or [])]
+    invalidos = sorted(set(lista) - set(_DOW) - {"feriado"})
+    if invalidos:
+        raise ValueError(f"regras.visita.dias_que_nao_contam: valor(es) invalido(s) {invalidos} (use {sorted(_DOW)} ou 'feriado')")
+    fora = datas.dt.dayofweek.isin([_DOW[x] for x in lista if x in _DOW])
+    if "feriado" in lista:
+        fora |= datas.isin(pd.to_datetime(CFG["calendario"].get("feriados") or []))
+    return fora
 
 
 def gerar(checkins: pd.DataFrame) -> pd.DataFrame:
@@ -49,6 +63,6 @@ def gerar(checkins: pd.DataFrame) -> pd.DataFrame:
     minimo = regras.get("minutos_minimos")
     if minimo is not None:                          # P-04: com duração mínima, visita sem par também não vale
         v["CONTA_COMO_VISITA"] &= v["MINUTOS_EM_LOJA"].fillna(-1) >= float(minimo)
-    if not regras.get("conta_fim_de_semana", True):     # D-32: sábado e domingo não contam
-        v["CONTA_COMO_VISITA"] &= v["DATA"].dt.dayofweek < 5
+    v["DIA_NAO_CONTA"] = dia_nao_conta(v["DATA"])     # D-32
+    v["CONTA_COMO_VISITA"] &= ~v["DIA_NAO_CONTA"]
     return v

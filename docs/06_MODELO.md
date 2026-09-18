@@ -39,7 +39,8 @@ fez o check-in nem o `Representante` do pedido. O login fica ao lado (`COD_VENDE
 | FATO_ROTA_PLANEJADA | CONTROLA_VISITA | `CANAL` fora de `regras.canais_sem_controle_de_visita` (TELEFONE) |
 | FATO_VISITA | N_CHECKINS, N_CHECKOUTS | eventos do cliente no dia: vários check-ins = UMA visita |
 | FATO_VISITA | MINUTOS_EM_LOJA, N_PARES | maior par check-in → check-out do dia; cada check-out pareia com o último check-in antes dele; nulo sem par |
-| FATO_VISITA | CONTA_COMO_VISITA | tem evento de `regras.visita.eventos_que_contam` (e duração ≥ `minutos_minimos`, se definido) |
+| FATO_VISITA | DIA_NAO_CONTA | a data cai num dia de `regras.visita.dias_que_nao_contam` (D-32: sábado, domingo e feriado) |
+| FATO_VISITA | CONTA_COMO_VISITA | tem evento de `regras.visita.eventos_que_contam` (e duração ≥ `minutos_minimos`, se definido) e NÃO é `DIA_NAO_CONTA` |
 | FATO_VISITA | NA_ROTA · NO_DIA_DA_ROTA | cliente está na rota do mês · DATA = DATA_ROTA |
 | FATO_PEDIDO | VALIDO | `SITUACAO` fora de `regras.pedido.situacoes_excluidas` (Cancelado e Bloqueado, D-33) |
 | FATO_PEDIDO | VALOR | `regras.pedido.coluna_valor` (VALOR_PEDIDO) |

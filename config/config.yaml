@@ -122,7 +122,10 @@ regras:                             # D-02: regras do protótipo 2 (conferidas e
     eventos_que_contam: [CHECKIN, CHECKOUT]
     # minutos em loja = o MAIOR par check-in -> check-out do cliente no dia; cada check-out pareia com o último check-in antes dele.
     minutos_minimos: null           # D-31 (18/09/2026): sem duração mínima — toda visita vale (null); com número, visita sem par também não vale
-    conta_fim_de_semana: false      # D-32 (18/09/2026): evento em sábado ou domingo NÃO conta como visita (fica na FATO_VISITA, marcado)
+    # D-32 (18/09/2026): dias em que o evento NÃO conta como visita (a linha fica na FATO_VISITA, marcada em DIA_NAO_CONTA).
+    # Valores aceitos: segunda, terca, quarta, quinta, sexta, sabado, domingo e feriado (= as datas de `calendario.feriados`).
+    # Para rever a regra basta editar a lista: [] = todo dia conta; [sabado, domingo] = feriado volta a contar.
+    dias_que_nao_contam: [sabado, domingo, feriado]
   canais_sem_controle_de_visita: [TELEFONE]    # acompanhados só por pedido (D-02)
   pedido:
     situacoes_excluidas: ["Cancelado", "Bloqueado"]   # D-33 (18/09/2026): Bloqueado NÃO conta como pedido tirado (o protótipo 2 contava)
@@ -138,7 +141,7 @@ painel:
   faixas:                           # cores dos percentuais: >= verde, >= ambar, abaixo vermelho (protótipo 2: 90/60)
     verde: 90
     ambar: 60
-  rotulo_quantidade: "Quantidade solicitada"   # P-02: unidade não declarada na origem — não chamar de volume/kg até confirmar
+  rotulo_valor: "Valor dos pedidos"   # D-35 (18/09/2026): o painel mostra o valor bruto = `Valor total do pedido` dos pedidos válidos; a quantidade solicitada saiu
 
 qualidade:                          # só para os relatórios de exceção; não muda nenhum número
   visita_curta_min: 1
