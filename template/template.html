@@ -190,7 +190,7 @@ function renderTop(){var m=D.meta;
   var sem=D.vend.filter(function(v){return !v.app;});
   document.getElementById('semApp').innerHTML=sem.length?'<div class="banner"><span style="font-size:20px">&#9888;&#65039;</span><div><b>'+sem.length+' de '+D.vend.length+
     (D.vend.length===1?' vendedor':' vendedores')+' sem nenhum check-in no mês:</b> '+sem.map(function(v){return esc(v.nome);}).join(', ')+
-    '. '+(sem.length===1?'As visitas dele aparecem zeradas':'As visitas deles aparecem zeradas')+' por falta de registro no aplicativo, não necessariamente por falta de atendimento.</div></div>':'';
+    '. '+(sem.length===1?'As visitas dele aparecem zeradas':'As visitas deles aparecem zeradas')+' porque o check-in não está sendo feito no aplicativo, não necessariamente por falta de atendimento.</div></div>':'';
   document.getElementById('selDia').innerHTML=D.dias.map(function(d,i){var n=D.lojas.filter(function(l){return l[4]===i;}).length;
     return '<option value="'+i+'">'+d.lab+' ('+d.dow+') · dia '+d.n+' de '+D.dias.length+' · '+n0(n)+' lojas'+(d.futuro?' · aguardando dados':'')+'</option>';}).join('');
   var pills='';
@@ -236,7 +236,7 @@ function colsAtivas(rows){var temTel=rows.some(function(r){return r.TEL_ROTEIRO>
   return COLS.filter(function(c){return (!c.dia||(ESC==='dia'&&!porSupervisor()))&&(!c.tel||temTel);});}
 function valor(r,k){return k==='h0'?r.h[0]:(k==='h1'?r.h[1]:r[k]);}
 function cel(r,c){var k=c.k,v=valor(r,k);
-  if(k==='nome')return '<td class="l"><b>'+esc(r.nome)+'</b>'+(r.semApp?'<span class="tag">'+(porSupervisor()?r.semApp+' sem app':'sem app')+'</span>':'')+(r.TEL_ROTEIRO&&!porSupervisor()&&r.nome!=='TOTAL'?'<span class="tag tel">híbrido</span>':'')+
+  if(k==='nome')return '<td class="l"><b>'+esc(r.nome)+'</b>'+(r.semApp?'<span class="tag">'+(porSupervisor()?r.semApp+' sem check-in':'sem check-in')+'</span>':'')+(r.TEL_ROTEIRO&&!porSupervisor()&&r.nome!=='TOTAL'?'<span class="tag tel">híbrido</span>':'')+
     '<div class="dim" style="font-size:10.5px">'+esc(r.sub)+'</div></td>';
   if(k==='VISITADAS_NO_DIA')return '<td>'+n0(v)+' <span class="dim">/ '+n0(r.ROTEIRO)+'</span></td>';
   if(k==='P_VIS'||k==='P_ADE')return '<td class="'+cls(v)+'">'+(v===null?'<span class="dim">—</span>':n1(v)+'%')+'</td>';
@@ -258,7 +258,7 @@ function renderChart(){var rows=linhas(ESC).sort(function(a,b){return b.ROTEIRO-
   var maxQ=Math.max.apply(null,rows.map(function(r){return r.VALOR_PEDIDOS;}))||1,maxT=Math.max.apply(null,rows.map(function(r){return r.T_LOJA||0;}))||1;
   function bar(lab,w,c,txt){return '<div class="mbar-row"><div class="mbar-lab">'+lab+'</div><div class="mbar-track"><div class="mbar-fill '+c+'" style="width:'+Math.max(w?2:0,Math.min(100,w||0))+'%"></div></div><div class="mbar-val">'+txt+'</div></div>';}
   function fc(p){var c=cls(p);return c==='pos'?'grn':(c==='amber'?'amb':(c==='neg'?'red':''));}
-  document.getElementById('viewGrafico').innerHTML=rows.map(function(r){return '<div class="routeblock"><div class="routehead"><b>'+esc(r.nome)+'</b><span class="dim">'+esc(r.sub)+(r.semApp?' · sem app':'')+'</span></div>'+
+  document.getElementById('viewGrafico').innerHTML=rows.map(function(r){return '<div class="routeblock"><div class="routehead"><b>'+esc(r.nome)+'</b><span class="dim">'+esc(r.sub)+(r.semApp?' · sem check-in':'')+'</span></div>'+
     bar('Visitadas no dia da rota',r.P_VIS,fc(r.P_VIS),n0(r.VISITADAS_NO_DIA)+' <span class="dim">/ '+n0(r.ROTEIRO)+' · '+n1(r.P_VIS)+'%</span>')+
     bar('Aderência (visitadas no mês)',r.P_ADE,fc(r.P_ADE),n0(r.VISITADAS_ATE_A_DATA)+' <span class="dim">/ '+n0(r.ROTEIRO)+' · '+n1(r.P_ADE)+'%</span>')+
     bar('Com pedido no mês',r.P_POS,'',n0(r.COM_PEDIDO)+' <span class="dim">/ '+n0(r.ROTEIRO)+' · '+n1(r.P_POS)+'%</span>')+
@@ -286,7 +286,7 @@ function renderLojas(){var q=(document.getElementById('q').value||'').trim().toL
     function seg(n,c){return n?'<span style="background:'+c+';flex:'+n+'"></span>':'';}
     var open=ALLOPEN||OPEN[i]||q;
     return '<div class="exblock'+(open?' open':'')+'" data-v="'+i+'"><div class="exhead"><span class="arrow">&#9654;</span><h4>'+esc(v.nome)+'</h4>'+(D.sups.length>1?'<span class="dim" style="font-size:11.5px">'+esc(D.sups[v.sup].nome)+'</span>':'')+
-      (v.app?'':'<span class="tag">sem app</span>')+'<div class="meter" title="'+k[3]+' visita + pedido · '+k[2]+' só visita · '+k[1]+' só pedido · '+k[0]+' sem contato">'+
+      (v.app?'':'<span class="tag">sem check-in</span>')+'<div class="meter" title="'+k[3]+' visita + pedido · '+k[2]+' só visita · '+k[1]+' só pedido · '+k[0]+' sem contato">'+
       seg(k[3],'var(--ok)')+seg(k[2],'var(--amb)')+seg(k[1],'var(--alt)')+seg(k[0],'#E3E8F2')+'</div><span class="cnt">'+todas.length+' lojas · '+(k[3]+k[2])+' visitadas · '+(k[3]+k[1])+' com pedido · '+k[0]+' sem contato</span></div>'+
       '<div class="exbody">'+(ls.length?ls.map(function(x){return linhaLoja(x.l,x.st);}).join(''):'<div class="empty">Nada a mostrar com o filtro atual.</div>')+'</div></div>';}).join('');}
 function linhaLoja(l,st){var m=MK[st.s],det=[];
