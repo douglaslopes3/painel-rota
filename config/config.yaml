@@ -88,7 +88,9 @@ fontes:
 
   estrutura:                        # hierarquia N1–N4 do Projeto Rota + login do Mercanet, no formato da Hierarquia_Consolidada (D-16)
     arquivo: bases/Estrutura/DePara_Estrutura_Rota.xlsx
-    obrigatorio: false              # false enquanto o de-para não fecha (ausência/pendência = aviso); true = aborta (D-15)
+    obrigatorio: true               # D-39 (18/09/2026): o de-para fechou — ausência ou problema ABORTA. false = só avisa (D-15)
+    # posições (código N4) que podem ficar SEM login sem contar como problema: posto vago conhecido.
+    posicoes_sem_login_aceitas: ["121"]          # 121 · Litoral [VAGO] (D-18). Tirar daqui quando a posição for preenchida.
     aba: Hierarquia
     # nome no staging -> cabeçalhos aceitos. Vale a coluna cujo cabeçalho TERMINA com um deles (sem acento, caixa ou quebra de
     # linha): "CRIAR NO BI / (N1) / HEAD" casa com "(N1) HEAD". As visões (painéis) saem de N1, N2 e N3; não são digitadas.
@@ -156,6 +158,14 @@ painel:
     verde: 90
     ambar: 60
   rotulo_valor: "Valor dos pedidos"   # D-35 (18/09/2026): o painel mostra o valor bruto = `Valor total do pedido` dos pedidos válidos; a quantidade solicitada saiu
+
+publicacao:                         # D-39 · etapa 6. Destino = <destino>/<rótulo da visão>/<painel.arquivo> (D-05)
+  liberada: false                   # D-28: TRAVA. Só vira true depois da validação com o time (Gui, supervisores, gerentes, head).
+                                    # Com false, `python run_rota.py --publicar` recusa e não copia nada.
+  destino: "../../Painéis Comerciais/Gerencial"          # relativo à raiz do projeto (ROTA/), como no DN; as 9 pastas já existem
+  pasta_ensaio: "%LOCALAPPDATA%/Dori/ROTA/ensaio_publicacao/Gerencial"   # `--ensaio` copia para cá (pasta local), nunca para o destino real
+  criar_pasta: true                 # pasta do usuário inexistente: criar e avisar (D-05). false = erro naquela visão
+  pular_se_identico: true           # mesmo md5 do já publicado = nada é copiado (o OneDrive não ressincroniza)
 
 qualidade:                          # só para os relatórios de exceção; não muda nenhum número
   visita_curta_min: 1

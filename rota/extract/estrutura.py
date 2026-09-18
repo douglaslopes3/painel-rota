@@ -141,7 +141,8 @@ def conferir(hier: pd.DataFrame, rota: pd.DataFrame, checkins: pd.DataFrame) -> 
     dup = sorted(com_login[com_login.duplicated("LOGIN_MERCANET", keep=False)]["LOGIN_MERCANET"].unique())
     if dup:
         p.append(f"login usado em mais de uma posicao: {dup}")
-    sem = hier[hier["LOGIN_MERCANET"].isna()]
+    aceitas = {str(c) for c in (CFG["fontes"]["estrutura"].get("posicoes_sem_login_aceitas") or [])}      # posto vago conhecido (D-39)
+    sem = hier[hier["LOGIN_MERCANET"].isna() & ~hier["N4_COD"].isin(aceitas)]
     if len(sem):
         p.append(f"{len(sem)} posicao(oes) sem LOGIN MERCANET (check-ins nao serao atribuidos): "
                  f"{[f'{c} {n}' for c, n in zip(sem['N4_COD'], sem['N4_NOME'])]}")

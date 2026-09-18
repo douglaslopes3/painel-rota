@@ -6,8 +6,9 @@ reconciliação com a fonte) -> 2 modelar (staging -> fatos e dimensões) ->
 3 calcular (indicadores + conferências de soma) -> gravar a camada curada, o
 relatório de qualidade, o resumo e o manifesto. NADA é gravado na camada curada
 antes de todas as validações passarem.
-4 renderizar + 5 validar os painéis — um por visão da hierarquia, em pasta LOCAL. A etapa 6 publicar só entra ao final do
-projeto, com tudo validado pelo time (D-28).
+4 renderizar + 5 validar os painéis — um por visão da hierarquia, em pasta LOCAL.
+6 publicar (`rota/publicar.py`): por padrão só LISTA o plano; `--ensaio` copia para pasta local; `--publicar` só copia para o
+destino real com `publicacao.liberada: true` no config (D-28).
 
 Qualquer falha termina em `PIPELINE ABORTADO`, exit code 1.
 """
@@ -17,7 +18,7 @@ import json
 import time
 from datetime import datetime
 
-from . import manifesto, metricas, painel, qualidade, render
+from . import manifesto, metricas, painel, publicar, qualidade, render
 from .extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal
 from .load import parquet
 from .transform import modelo
@@ -207,12 +208,12 @@ def _painel(m: dict, calc: dict, hier) -> dict:
         if velho.name not in nomes:
             velho.unlink()
             L.log(f"removido painel sem visao correspondente nesta execucao: {velho.name}", "aviso")
-    L.log(f"paineis em {render.PASTA_PAINEL} (pasta local, fora do OneDrive). NADA foi publicado (D-28).")
+    L.log(f"paineis em {render.PASTA_PAINEL} (pasta local, fora do OneDrive).")
     L.etapa_fim("ok" if not falhas else "com falhas", paineis=len(gerados), falhas=len(falhas))
     return {"paineis": gerados, "falhas": falhas}
 
 
-def executar(forcar: bool = False) -> int:
+def executar(forcar: bool = False, modo_publicacao: str = "plano") -> int:
     preparar_pastas()
     arq_log = L.abrir()
     L.titulo(f"PAINEL DE ROTA · execucao {L.EXECUCAO_ID}")
@@ -237,9 +238,10 @@ def executar(forcar: bool = False) -> int:
     info["aderencia_mes"] = {k: (round(float(v), 2) if v == v else None) for k, v in calc["_aderencia"].items() if k != "GRUPO"}
     L.etapa_fim("ok")
     manifesto.gravar(L.EXECUCAO_ID, {"dados_ate": info["dados_ate"]})
+    info["publicacao"] = publicar.executar(gerados["paineis"], gerados["falhas"], modo_publicacao)
 
     resumo = {"execucao": L.EXECUCAO_ID, "inicio": L.INICIO.isoformat(timespec="seconds"),
-              "fim": datetime.now().isoformat(timespec="seconds"), "situacao": "ok" if not info["falhas_paineis"] else "paineis com falha",
+              "fim": datetime.now().isoformat(timespec="seconds"), "situacao": "paineis com falha" if info["falhas_paineis"] else ("publicacao com erro" if info["publicacao"]["erros"] else "ok"),
               "manifesto": dif, "etapas": L.etapas(), "arquivos": L.contagens(), **info,
               "avisos": L.avisos(), "erros": L.erros()}
     alvo = PASTA_LOGS / f"resumo_{L.EXECUCAO_ID}.json"
@@ -247,6 +249,10 @@ def executar(forcar: bool = False) -> int:
     L.log("")
     if info["falhas_paineis"]:
         L.log(f"CONCLUIDO COM {len(info['falhas_paineis'])} FALHA(S) NOS PAINEIS (acima). Log: {arq_log.name} | resumo: {alvo.name}", "erro")
+        L.fechar()
+        return 1
+    if info["publicacao"]["erros"]:
+        L.log(f"PAINEIS GERADOS, MAS A PUBLICACAO TEVE {len(info['publicacao']['erros'])} ERRO(S) (acima). Log: {arq_log.name} | resumo: {alvo.name}", "erro")
         L.fechar()
         return 1
     L.log(f"SUCESSO — {len(L.avisos())} aviso(s). Log: {arq_log.name} | resumo: {alvo.name}", "ok")

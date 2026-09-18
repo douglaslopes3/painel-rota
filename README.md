@@ -16,6 +16,9 @@ python run_rota.py            # verificar -> ingerir -> modelar -> calcular -> p
 python run_rota.py --forcar   # relê todas as bases ignorando o cache
 python tests/test_leitores.py # 21 testes dos leitores (não precisa de pytest)
 python tests/test_regras.py   # 16 testes das regras de visita, pedido e indicadores
+python run_rota.py --ensaio       # ensaia a publicacao em pasta local (nao toca em Paineis Comerciais)
+python run_rota.py --publicar     # publica — so com publicacao.liberada: true no config (D-28)
+python tests/test_publicar.py     # trava, tudo ou nada e copia conferida (D-39)
 python ferramentas/reconciliar_prototipo2.py   # aceite da Fase 2 (só vale com as bases de 16/09)
 ```
 
