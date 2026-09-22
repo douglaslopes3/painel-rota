@@ -57,7 +57,7 @@ no fim; o md5 é conferido depois; nada é apagado na pasta do usuário (os pain
 | Mudou | O que fazer |
 |---|---|
 | Vendedor, supervisor ou login | editar `bases/Estrutura/DePara_Estrutura_Rota.xlsx` (1 linha por posição N4). Problema no de-para ABORTA (D-39) |
-| A posição 121 · Litoral foi preenchida | pôr nome e login no de-para e tirar `"121"` de `fontes.estrutura.posicoes_sem_login_aceitas` |
+| Uma posição ficou vaga | nome `[VAGO]` no de-para e na rota, e o código N4 em `fontes.estrutura.posicoes_sem_login_aceitas` (a 121 foi preenchida em 22/09, D-43) |
 | Uma regra de negócio | editar a lista no config (`regras.*`), rodar os testes, registrar a decisão em `docs/10_DECISOES.md` |
 | Vendedor novo no Projeto Rota | incluir o nome dele no filtro `Nome Vendedor Novo (N4)` dos 3 exports do BI, além do de-para |
 | Nome de loja errado | corrigir em `Clientes_Rota.xlsx` |

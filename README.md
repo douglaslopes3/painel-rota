@@ -31,7 +31,7 @@ Qualquer falha termina com `PIPELINE ABORTADO`, exit code 1, dizendo o arquivo, 
 | `Rota/` | `Rota_*.xlsx`, aba `Base de Clientes` | rota planejada do mês, 1 linha por cliente, com `Cód. vendedor` (chave com a hierarquia, D-17) | 1 arquivo por mês, entregue pelo time de Atacado no fechamento |
 | `Mercanet/` | `*.csv` | timeline de check-in/check-out | extração acumulada do mês: **substituir** o arquivo do mês corrente todo dia |
 | `Pedidos/` | `*.csv` | consulta de pedidos (canal Atacado inteiro), com rodapé de totais | idem |
-| `Estrutura/` | `DePara_Estrutura_Rota.xlsx`, aba `Hierarquia` | hierarquia N1–N4 do Projeto Rota (formato da `Hierarquia_Consolidada` do Gerencial) + login do Mercanet; as visões saem de N1, N2 e N3 | mantido pelo Douglas / Atacado; 21 das 22 posições com login, a 121 `[VAGO]` sem (D-30) |
+| `Estrutura/` | `DePara_Estrutura_Rota.xlsx`, aba `Hierarquia` | hierarquia N1–N4 do Projeto Rota (formato da `Hierarquia_Consolidada` do Gerencial) + login do Mercanet; as visões saem de N1, N2 e N3 | mantido pelo Douglas / Atacado; as 22 posições com login desde 22/09 (121 = Marcelo Silva, D-43) |
 | `SellIn/` | `Projeto Rota.xlsx`, `Projeto Rota Carteira.xlsx`, `Proejto Rota Faturado.xlsx` | sell-in do BI: cliente × mês (orçado, carteira, receita, LY), pedidos em carteira e faturado — complemento aos pedidos (D-42); lido e conferido, ainda fora dos indicadores | extrair os 3 juntos todo dia e substituir |
 | `Estrutura/` | `Clientes_Rota.xlsx` | nome de TODAS as lojas da rota (código + nome); vence o nome do Mercanet (D-38) | mantido pelo Douglas; atualizar quando entrar loja nova na rota |
 
