@@ -112,6 +112,10 @@ fontes:
       PROJETO: ["PROJETO"]
       LOGIN_MERCANET: ["LOGIN MERCANET", "LOGIN MERCATNET"]   # a 2ª grafia é a do arquivo de 17/09/2026
       NOME_MERCANET: ["NOME MERCANET"]
+    # D-45 (22/09/2026): coluna OPCIONAL. Posição com data = encerrada (vendedor saiu): não precisa de login nem de lojas na rota do
+    # mês corrente; continua no de-para para os meses fechados em que teve lojas. Sem a coluna, toda posição é ativa.
+    colunas_opcionais:
+      ENCERRADA_EM: ["ENCERRADA EM"]
 
   clientes:                         # D-38 · cadastro de nomes das lojas do Projeto Rota · 1 linha = 1 cliente · mantido pelo Douglas
     arquivo: bases/Estrutura/Clientes_Rota.xlsx
@@ -123,6 +127,10 @@ fontes:
 
   sellin:                           # D-42 (22/09/2026) · P-16 · exports do BI (sell-in), COMPLEMENTO aos pedidos do Mercanet (não substitui)
     pasta: bases/SellIn             # 3 arquivos de nome fixo (os nomes do export do BI), substituídos todo dia, extraídos em sequência
+    # D-45: mês FECHADO fica numa subpasta com o mês no nome (ex.: bases/SellIn/2026-09/) com os mesmos 3 arquivos, extraídos com o
+    # filtro "Ano mês" daquele mês, uma vez, no dia 5 do mês seguinte. A raiz é sempre o mês corrente. O mês da subpasta tem de
+    # ser o mês do conteúdo; o mesmo mês na raiz e numa subpasta aborta.
+    subpasta_mes_regex: "^\\d{4}-\\d{2}$"
     obrigatorio: false              # false = arquivo ausente só avisa; true = aborta
     # Rodapé do export: linha "Total" (vira o GABARITO: a soma das linhas tem de bater), linha em branco e "Filtros aplicados..."
     # (descartada, com o texto guardado no staging-json). Linha que não é dado nem rodapé ABORTA.
@@ -224,6 +232,11 @@ regras:                             # D-02: regras do protótipo 2 (conferidas e
 painel:
   arquivo: Painel_Rota.html         # nome estável do arquivo publicado (D-05)
   niveis_gerados: [N1, N2, N3]      # D-21: 1 head + 3 gerentes + 5 supervisores = 9 painéis. Gerados em pasta local; publicação só ao final (D-28)
+  # D-45 (22/09/2026): um único Painel_Rota.html por usuário com o mês corrente + os últimos N meses fechados (seletor de mês na tela).
+  # Mês fechado = mês anterior ao corrente presente nas bases, congelado no último dia. 0 = só o mês corrente.
+  meses_fechados: 12
+  # tabela e gráfico abrem neste período (dia | sem | mes); o botão Período continua na tela
+  periodo_inicial: mes
   faixas:                           # cores dos percentuais: >= verde, >= ambar, abaixo vermelho (protótipo 2: 90/60)
     verde: 90
     ambar: 60

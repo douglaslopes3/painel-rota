@@ -22,6 +22,7 @@ for _f in (sys.stdout, sys.stderr):
         pass
 
 from rota import metricas, painel  # noqa: E402
+from rota.extract import estrutura  # noqa: E402
 from rota.transform import calendario, modelo, visitas  # noqa: E402
 from rota.utils.config import CFG  # noqa: E402
 
@@ -300,6 +301,68 @@ def test_sellin_so_lojas_da_rota_com_meta_pelos_pesos_das_semanas():
     assert painel.conferir_niveis(tot, [V_SUP, V_TEL, V_HEAD]) == [] and tot[V_HEAD["ROTULO"]]["ORCADO_SI"] == 500
     J = Js[V_HEAD["ROTULO"]]
     assert J["meta"]["sellin"]["pesos"]["S1"] == 30 and [(d["sem"], d["peso_acum"]) for d in J["dias"]] == [("S1", 30), ("S1", 30), ("S2", 60)]
+
+
+# ------------------------------------------------------------------ D-45: mes fechado + mes corrente no mesmo painel
+def _cenario_dois_meses():
+    """Setembro (fechado) + outubro (corrente). Em setembro a posicao 999 (ANTIGO, encerrada, sem login) tinha a loja 7 e a rota a
+    chamava 'ANTIGO DA EPOCA'; em outubro ela nao tem lojas. A loja 1 e do 101 nos dois meses."""
+    rota_out = pd.DataFrame({"ANO_MES": "2026-10", "SUPERVISOR": ["Marco"] * 4 + ["Anderson"], "COD_VENDEDOR": pd.array(["101"] * 4 + ["136"], dtype="string"),
+                             "EXECUTIVO": ["FULANO"] * 4 + ["HIBRIDO"], "COD_CLIENTE": ["1", "2", "3", "4", "5"], "CANAL": ["PRESENCIAL"] * 4 + ["TELEFONE"],
+                             "DATA_ROTA": pd.to_datetime(["2026-10-05", "2026-10-05", "2026-10-06", "2026-10-09", "2026-10-05"])})
+    rota_set = pd.DataFrame({"ANO_MES": "2026-09", "SUPERVISOR": ["Marco", "Marco", "Marco"], "COD_VENDEDOR": pd.array(["101", "101", "999"], dtype="string"),
+                             "EXECUTIVO": ["FULANO", "FULANO", "ANTIGO DA EPOCA"], "COD_CLIENTE": ["1", "2", "7"], "CANAL": "PRESENCIAL",
+                             "DATA_ROTA": pd.to_datetime(["2026-09-07", "2026-09-14", "2026-09-08"])})
+    rota = pd.concat([rota_set, rota_out], ignore_index=True)
+    for c, v in {"CIDADE": "ITU", "NET_SALES_25": 1.0, "NET_SALES_26": 2.0, "FREQ_25": 4, "FREQ_26": 5, "VOLUME_25": 1.0, "VOLUME_26": 1.0, "ARQUIVO_ORIGEM": "r.xlsx"}.items():
+        rota[c] = v
+    ci = _ci([("AAA", "1", "2026-09-09 09:00", "CHECKIN"), ("AAA", "1", "2026-09-09 09:30", "CHECKOUT"),      # 07/09 e feriado (nao conta, D-32)
+              ("AAA", "1", "2026-10-05 09:00", "CHECKIN"), ("AAA", "1", "2026-10-05 09:31", "CHECKOUT")])
+    ped = pd.DataFrame({"ANO_MES": ["2026-09", "2026-10"], "PEDIDO": ["s1", "o1"], "COD_CLIENTE": ["2", "1"], "NOME_CLIENTE": "n",
+                        "DATA_EMISSAO": pd.to_datetime(["2026-09-14", "2026-10-05"]), "SITUACAO": "Aberto", "VALOR_PEDIDO": [40.0, 100.0], "QTD_SOLICITADA": [4.0, 10.0]})
+    hier = pd.DataFrame({"N1_COD": "20", "N1_ROTULO": "20 - ATACADO - HEAD", "N2_COD": ["21000", "23000", "21000"], "N2_ROTULO": ["21000 - G - A", "23000 - G - B", "21000 - G - A"],
+                         "N3_COD": ["2110", "2310", "2110"], "N3_ROTULO": ["2110 - S - MARCO", "2310 - S - ANDERSON", "2110 - S - MARCO"], "N3_NOME": ["MARCO", "ANDERSON", "MARCO"],
+                         "N4_COD": ["101", "136", "999"], "N4_ROTULO": ["101 - V - FULANO", "136 - V - HIBRIDO", "999 - V - ANTIGO"], "N4_NOME": ["FULANO", "HIBRIDO", "ANTIGO"],
+                         "LOGIN_MERCANET": pd.array(["AAA", pd.NA, pd.NA], dtype="string"), "ENCERRADA_EM": pd.to_datetime([None, None, "2026-09-30"])})
+    hier["ATIVA"] = hier["ENCERRADA_EM"].isna()
+    m = modelo.construir(rota, ci, ped, hier)
+    return m, metricas.loja_mes(m), hier, rota, ci
+
+
+def test_mes_fechado_e_corrente_no_mesmo_painel_com_nome_da_epoca():
+    m2, L2, hier2, rota2, ci2 = _cenario_dois_meses()
+    prob = estrutura.conferir(hier2, rota2, ci2, mes_corrente="2026-10")
+    assert not any("999" in p for p in prob)                                            # 999 encerrada: sem login e sem loja em outubro nao e problema
+    assert any("999" in p for p in estrutura.conferir(hier2.drop(columns="ATIVA"), rota2[rota2.ANO_MES == "2026-10"], ci2))   # sem a marca de encerrada, acusaria
+    dv2 = m2["DIM_VENDEDOR"]
+    P_set = painel.preparar(m2, L2, T("2026-09-30"))
+    P_out = painel.preparar(m2, L2, T("2026-10-07"))
+    Js = {}
+    for v in (V_SUP, V_TEL, V_HEAD):
+        js = painel.montar(P_set, dv2, v, "30/09/2026 18:00", fechado=True)
+        jo = painel.montar(P_out, dv2, v, "07/10/2026 08:00")
+        painel.validar(js, P_set, dv2, v)
+        painel.validar(jo, P_out, dv2, v)
+        Js[v["ROTULO"]] = (js, jo)
+    js, jo = Js[V_SUP["ROTULO"]]
+    assert [x["cod"] for x in js["vend"]] == ["999", "101"] and [x["nome"] for x in js["vend"]] == ["Antigo Da Epoca", "Fulano"]   # nome da epoca (rota), em ordem alfabetica
+    assert [x["cod"] for x in jo["vend"]] == ["101"] and js["meta"]["fechado"] and not jo["meta"]["fechado"]
+    assert js["meta"]["dados_ate"] == "2026-09-30" and [d["lab"] for d in js["dias"]] == ["07/09", "08/09", "14/09"]
+    C = {c: i for i, c in enumerate(js["cols"])}
+    i101 = [x["cod"] for x in js["vend"]].index("101")
+    assert [js["agg"]["mes"][2][i101][C[k]] for k in ("ROTEIRO", "VISITADAS_ATE_A_DATA", "COM_PEDIDO")] == [2, 1, 1]   # setembro inteiro do 101
+    for mes_i in (0, 1):
+        tot = {r: painel.totais(j[mes_i]) for r, j in Js.items()}
+        assert painel.conferir_niveis(tot, [V_SUP, V_TEL, V_HEAD]) == []
+    J = painel.juntar([jo, js])
+    assert J["corrente"] == 1 and [x["meta"]["ano_mes"] for x in J["meses"]] == ["2026-09", "2026-10"] and J["meta"]["visao"] == V_SUP["ROTULO"]
+    assert "fechado" not in J["meta"] and J["meses"][0]["meta"]["fechado"] and J["meta"]["meses_fechados"] == CFG["painel"]["meses_fechados"]
+    try:
+        painel.juntar([js])                                                       # sem mes corrente
+    except painel.PainelInvalido:
+        pass
+    else:
+        raise AssertionError("juntar aceitou um painel sem mes corrente")
 
 
 if __name__ == "__main__":

@@ -108,6 +108,8 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
   <div id="semApp"></div>
 
   <div class="bar0">
+    <span class="lab0">Mês</span>
+    <select id="selMes" aria-label="Mês"></select>
     <span class="lab0">Dia de rota</span>
     <select id="selDia" aria-label="Dia de rota"></select>
     <span id="supPills" style="display:flex;gap:7px;flex-wrap:wrap"></span>
@@ -158,7 +160,12 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
 
 <script>
 /*__PAINEL_DADOS__*/
-var D=null, C={}, DAY=0, SUP=-1, ESC='dia', VIEW='tabela', SORT={k:'ROTEIRO',dir:-1}, FILT='todas', CANAL='todos', OPEN={}, ALLOPEN=false;
+var PAY=null, D=null, C={}, MES=0, DAY=0, SUP=-1, ESC='dia', VIEW='tabela', SORT={k:'ROTEIRO',dir:-1}, FILT='todas', CANAL='todos', OPEN={}, ALLOPEN=false;
+/* D-45: um arquivo, varios meses. usarMes(k) monta D com o bloco do mes k + o que e comum a visao; o resto da tela le so D. */
+function usarMes(k){var M=PAY.meses[k];MES=k;
+  D={meta:Object.assign({},PAY.meta,M.meta),cols:PAY.cols,lojas_cols:PAY.lojas_cols,dias:M.dias,sups:M.sups,vend:M.vend,agg:M.agg,horarios:M.horarios,lojas:M.lojas};
+  C={};D.cols.forEach(function(c,i){C[c]=i;});DAY=0;D.dias.forEach(function(d,i){if(!d.futuro)DAY=i;});SUP=-1;OPEN={};ALLOPEN=false;}
+function rotuloMes(M){return M.meta.mes+(M.meta.fechado?' · mês fechado':' · em andamento');}
 
 function n0(v){return Math.round(v).toLocaleString('pt-BR');}
 function brl(v){return 'R$ '+n0(v);}
@@ -199,6 +206,10 @@ function renderTop(){var m=D.meta;
   document.getElementById('hAtual').textContent=m.atualizado_em;
   document.getElementById('hCi').textContent=m.checkins_ate||'sem check-in';document.getElementById('hPd').textContent=m.pedidos_ate;
   document.getElementById('hMes').textContent=m.mes;
+  document.getElementById('selMes').innerHTML=PAY.meses.map(function(M,i){return '<option value="'+i+'"'+(i===MES?' selected':'')+'>'+esc(rotuloMes(M))+'</option>';}).join('');
+  var selo=document.getElementById('seloMes');if(!selo){selo=document.createElement('div');selo.id='seloMes';selo.className='banner';selo.style.cssText='background:#FFF4D6;border-color:#E6C46A';document.getElementById('semApp').before(selo);}
+  selo.style.display=m.fechado?'':'none';
+  selo.innerHTML=m.fechado?'<span style="font-size:20px">&#128274;</span><div><b>Mês fechado · '+esc(m.mes)+'</b> — números congelados no último dia do mês (dados até '+esc(m.dados_ate.split('-').reverse().join('/'))+', bases de '+esc(m.atualizado_em)+'). Escolha outro mês no seletor para ver o mês em andamento.</div>':'';
   if(temSi()){document.getElementById('pSi').style.display='';document.getElementById('hSi').textContent=m.sellin.ate;document.getElementById('blocoSi').style.display='';}
   var sem=D.vend.filter(function(v){return !v.app;});
   document.getElementById('semApp').innerHTML=sem.length?'<div class="banner"><span style="font-size:20px">&#9888;&#65039;</span><div><b>'+sem.length+' de '+D.vend.length+
@@ -245,7 +256,7 @@ function cardsSi(){var s=derivar(somar('mes',DAY,vendDaVisao())),d=D.dias[DAY],h
   h.push(hero('Lojas faturadas',n0(s.LOJAS_FATURADAS_SI)+' <small>/ '+n0(s.LOJAS_SI)+'</small>',n1(s.P_LOJ_FAT)+'% das lojas da rota com faturamento no mês','',s.P_LOJ_FAT));
   return h.join('');}
 function renderCards(){var d=D.dias[DAY];
-  document.getElementById('hCiclo').textContent='Dia '+d.n+' de '+D.dias.length+' do ciclo de '+D.meta.mes+' · '+d.lab+' ('+d.dow+')'+(d.futuro?' · ainda sem dados: mostrando o planejado':'');
+  document.getElementById('hCiclo').textContent='Dia '+d.n+' de '+D.dias.length+' do ciclo de '+D.meta.mes+' · '+d.lab+' ('+d.dow+')'+(D.meta.fechado?' · MÊS FECHADO':'')+(d.futuro?' · ainda sem dados: mostrando o planejado':'');
   document.getElementById('tipDia').textContent='somente '+d.lab+' ('+d.dow+')';
   document.getElementById('tipSem').textContent=(d.sem?d.sem+' ('+d.sem_ini+' a '+d.sem_fim+') · ':'')+'de '+d.sem_ini+' até '+d.lab;
   document.getElementById('tipMes').textContent='de 01/'+d.d.slice(5,7)+' até '+d.lab;
@@ -342,14 +353,15 @@ document.addEventListener('click',function(e){var b=e.target.closest('[data-esc]
   else if(b.dataset.k){var k=b.dataset.k;if(SORT.k===k)SORT.dir*=-1;else SORT={k:k,dir:k==='nome'?1:-1};renderTable();}
   else if(b.classList.contains('exhead')){var p=b.parentElement,i=+p.dataset.v;OPEN[i]=!p.classList.contains('open');p.classList.toggle('open');}});
 document.getElementById('selDia').addEventListener('change',function(e){DAY=+e.target.value;renderTudo();});
+document.getElementById('selMes').addEventListener('change',function(e){usarMes(+e.target.value);renderTop();document.getElementById('selDia').value=String(DAY);ativar('[data-sup]','data-sup',SUP);renderTudo();});
 document.getElementById('q').addEventListener('input',renderLojas);
 
 /* ---------- carga: gzip+base64 -> JSON, sem rede ---------- */
 (async function(){try{
   var bin=Uint8Array.from(atob(PAYLOAD.b64),function(c){return c.charCodeAt(0);});
   var txt=await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
-  D=JSON.parse(txt);D.cols.forEach(function(c,i){C[c]=i;});
-  DAY=0;D.dias.forEach(function(d,i){if(!d.futuro)DAY=i;});
+  PAY=JSON.parse(txt);usarMes(PAY.corrente);
+  ESC=PAY.meta.periodo_inicial||'dia';ativar('[data-esc]','data-esc',ESC);
   renderTop();document.getElementById('selDia').value=String(DAY);document.getElementById('app').style.display='';renderTudo();
 }catch(err){var e=document.getElementById('erro');e.style.display='block';e.innerHTML='<b>Não foi possível abrir os dados do painel.</b><br>Abra o arquivo no Chrome ou no Edge atualizados. Detalhe: '+esc(err&&err.message||err);}})();
 </script>

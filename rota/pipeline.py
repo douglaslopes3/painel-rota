@@ -18,6 +18,8 @@ import json
 import time
 from datetime import datetime
 
+import pandas as pd
+
 from . import manifesto, metricas, painel, publicar, qualidade, render
 from .extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal, sellin
 from .load import parquet
@@ -91,7 +93,9 @@ def _ingerir(forcar: bool) -> dict:
         L.log(f"hierarquia: {x['posicoes']} posicoes (N4) | {x['n3']} supervisores | {x['n2']} gerentes | {x['n1']} head | "
               f"{x['com_login']} com login | {len(vis)} visoes possiveis", "ok")
         L.log("chave rota x hierarquia: " + ("CODIGO do vendedor" if rota["COD_VENDEDOR"].notna().all() else "NOME do executivo (a rota nao traz o codigo do vendedor)"))
-        problemas = estrutura.conferir(df, rota, ci)
+        problemas = estrutura.conferir(df, rota, ci, mes_corrente=_ate_dos_dados_staging(ci, pd_))
+        if x.get("encerradas"):
+            L.log(f"hierarquia: {x['encerradas']} posicao(oes) encerrada(s) (ENCERRADA EM) — ficam so nos meses fechados em que tiveram lojas")
         for p in problemas:
             L.log("de-para: " + p, "aviso")
         if problemas and CFG["fontes"]["estrutura"].get("obrigatorio"):
@@ -118,22 +122,35 @@ def _ingerir(forcar: bool) -> dict:
         if obrig:
             L.abortar(msg)
         L.log(msg, "aviso")
-    si = sellin.carregar(forcar)                   # D-42: sell-in do BI — só lido e conferido; nenhum indicador usa ainda (P-16)
+    si = sellin.carregar(forcar)                   # D-42/D-45: sell-in do BI por mês (raiz = corrente, subpastas = fechados)
     cruz = None
-    if si is not None:
-        avisos, difs = sellin.conferir(si)
+    mes_corrente = _ate_dos_dados_staging(ci, pd_)
+    for mes, si_m in (si or {}).items():
+        avisos, difs = sellin.conferir(si_m)
         for a in avisos:
-            L.log("sell-in: " + a, "aviso")
-        cruz = sellin.cruzar(si, rota, hier)
-        cruz["_diferencas"] = difs
-        L.log(f"sell-in: {cruz['clientes_bi']:,} clientes no BI | {cruz['lojas_rota_no_bi']:,} de {cruz['lojas_rota']:,} lojas da rota no BI | "
-              f"{cruz['clientes_bi_fora_da_rota']:,} clientes do BI fora da rota (receita {cruz['receita_fora_da_rota']:,.2f}) | "
-              f"vendedor do BI diferente do da rota em {cruz['vendedor_diferente']:,} loja(s)", "ok")
-        if cruz["vendedores_bi_fora_do_depara"]:
-            L.log(f"sell-in: vendedor(es) do BI fora do de-para {cruz['vendedores_bi_fora_do_depara']} — ficam so no relatorio de qualidade", "aviso")
+            L.log(f"sell-in {mes}: " + a, "aviso")
+        rota_m = rota[rota["ANO_MES"] == mes]
+        if not len(rota_m):
+            L.log(f"sell-in {mes}: nao ha rota planejada desse mes — sell-in ignorado", "aviso")
+            continue
+        c = sellin.cruzar(si_m, rota_m, hier)
+        c["_diferencas"] = difs
+        L.log(f"sell-in {mes}: {c['clientes_bi']:,} clientes no BI | {c['lojas_rota_no_bi']:,} de {c['lojas_rota']:,} lojas da rota no BI | "
+              f"{c['clientes_bi_fora_da_rota']:,} clientes do BI fora da rota (receita {c['receita_fora_da_rota']:,.2f}) | "
+              f"vendedor do BI diferente do da rota em {c['vendedor_diferente']:,} loja(s)", "ok")
+        if c["vendedores_bi_fora_do_depara"]:
+            L.log(f"sell-in {mes}: vendedor(es) do BI fora do de-para {c['vendedores_bi_fora_do_depara']} — ficam so no relatorio de qualidade", "aviso")
+        if mes == mes_corrente:
+            cruz = c
+    if si and mes_corrente not in si:
+        L.log(f"sell-in: a raiz de bases/SellIn tem o mes {list(si)[0]}, mas o mes corrente dos dados e {mes_corrente}", "aviso")
     L.etapa_fim("ok", chaves=chaves, problemas_depara=len(problemas))
     return {"chaves": chaves, "problemas_depara": problemas, "sellin": {k: v for k, v in (cruz or {}).items() if not k.startswith("_")},
-            "_sellin": cruz, "_si": si, "_dados": (rota, ci, pd_, hier, cli)}
+            "_sellin": cruz, "_si": si, "_bases_mes": _bases_por_mes(rota, ci, pd_), "_dados": (rota, ci, pd_, hier, cli)}
+
+
+def _ate_dos_dados_staging(ci, pd_) -> str:
+    return min(ci["DATA_HORA"].max().normalize(), pd_["DATA_EMISSAO"].max()).strftime("%Y-%m")
 
 
 def _modelar(rota, ci, pd_, hier, cli=None) -> dict:
@@ -149,81 +166,130 @@ def _modelar(rota, ci, pd_, hier, cli=None) -> dict:
     return m
 
 
+def _ate_dos_dados(fv, fp) -> pd.Timestamp:
+    """Última data com check-in E pedido: o painel não vai além do que as duas extrações cobrem."""
+    return min(fv["DATA"].max(), fp["DATA_EMISSAO"].max())
+
+
 def _calcular(m: dict) -> dict:
+    """Indicadores e conferências de soma, por MÊS (D-45): o mês corrente vai até a última data com dados; cada mês fechado
+    (anterior, presente nas bases, até `painel.meses_fechados`) vai até o último dia do mês."""
     L.etapa_inicio("3 · CALCULAR (indicadores)")
     fv, fp = m["FATO_VISITA"], m["FATO_PEDIDO"]
     lojas = metricas.loja_mes(m)
     diario = metricas.diario_vendedor(lojas, fv, fp)
-    ate = min(fv["DATA"].max(), m["FATO_PEDIDO"]["DATA_EMISSAO"].max())
-    mes = ate.strftime("%Y-%m")
-    dias_mes = [d for d in m["DIM_CALENDARIO"].query("ANO_MES == @mes")["DATA"] if d <= ate]
-    total = metricas.kpis(lojas[lojas["ANO_MES"] == mes], fv, fp, dias_mes).iloc[0]
-    # conferências de soma: o total tem de ser a soma das partes, em qualquer corte da hierarquia
+    ate = _ate_dos_dados(fv, fp)
+    mes_corrente = ate.strftime("%Y-%m")
+    meses_rota = sorted(lojas["ANO_MES"].unique())
+    if mes_corrente not in meses_rota:
+        L.abortar(f"check-ins e pedidos chegam a {ate:%d/%m/%Y}, mas nao ha rota planejada de {mes_corrente} em bases/Rota (meses com rota: {meses_rota}).")
+    futuros = [x for x in meses_rota if x > mes_corrente]
+    if futuros:
+        L.log(f"rota de {futuros} ainda sem check-ins/pedidos: fica fora do painel ate os dados chegarem", "aviso")
+    n_fechados = int(CFG["painel"].get("meses_fechados") or 0)
+    fechados = [x for x in meses_rota if x < mes_corrente]
+    fora = fechados[:-n_fechados] if n_fechados else fechados
+    fechados = fechados[len(fechados) - n_fechados:] if n_fechados else []
+    if fora:
+        L.log(f"mes(es) fechado(s) fora do painel (painel.meses_fechados = {n_fechados}): {fora} — seguem na camada curada", "aviso")
     soma_cols = ["ROTEIRO", "VISITADAS_NO_DIA", "COM_PEDIDO", "VISITA_E_PEDIDO", "SEM_CONTATO", "FORA_DO_ROTEIRO", "TEL_ROTEIRO", "TEL_COM_PEDIDO"]
-    for por in ("COD_VENDEDOR", "N3_COD", "N2_COD", "N1_COD"):
-        if lojas[por].isna().any():
-            L.log(f"conferencia de soma por {por} pulada: ha lojas sem {por} (hierarquia incompleta)", "aviso")
-            continue
-        k = metricas.kpis(lojas[lojas["ANO_MES"] == mes], fv, fp, dias_mes, por=por)
-        for c in soma_cols:
-            if int(k[c].sum()) != int(total[c]):
-                L.abortar(f"soma por {por} nao fecha com o total em {c}: {int(k[c].sum())} x {int(total[c])}.")
-        if abs(k["VALOR_PEDIDOS"].sum() - total["VALOR_PEDIDOS"]) > 0.01:
-            L.abortar(f"soma por {por} nao fecha com o total em VALOR_PEDIDOS.")
-    dia_mes = diario[(diario["DATA"].dt.strftime("%Y-%m") == mes) & (diario["DATA"] <= ate)]
-    for c in ("ROTEIRO", "VISITADAS_NO_DIA"):                  # COM_PEDIDO no criterio "mes" depende da data final: nao se soma dia a dia
-        if int(dia_mes[c].sum()) != int(total[c]):
-            L.abortar(f"DIARIO_VENDEDOR nao fecha com o total do mes em {c}: {int(dia_mes[c].sum())} x {int(total[c])}.")
-    L.log("somas por vendedor, supervisor, gerente e head = total; diario = mes", "ok")
-    ad = metricas.aderencia_mes(lojas, fv, ate).iloc[0]
-    if CFG["regras"]["pedido"]["criterio"] == "mes" and int(ad["VISITADAS_NO_MES"]) != int(total["VISITADAS_ATE_A_DATA"]):
-        L.abortar(f"aderencia do mes ({int(ad['VISITADAS_NO_MES'])}) nao fecha com kpis.VISITADAS_ATE_A_DATA ({int(total['VISITADAS_ATE_A_DATA'])}).")
-    L.log(f"MES ATE {ate:%d/%m/%Y} | roteiro vencido {int(total['ROTEIRO']):,} | visitadas no dia da rota {int(total['VISITADAS_NO_DIA']):,} "
-          f"({total['PCT_VISITA_NO_DIA']:.1f}%) | fora do roteiro {int(total['FORA_DO_ROTEIRO']):,} | ADERENCIA NO MES (D-03) "
-          f"{int(ad['VISITADAS_NO_MES']):,}/{int(ad['ROTEIRO_VENCIDO']):,} = {ad['PCT_ADERENCIA_MES']:.1f}% | com pedido ({CFG['regras']['pedido']['criterio']}) {int(total['COM_PEDIDO']):,} | "
-          f"telefone com pedido {int(total['TEL_COM_PEDIDO']):,}/{int(total['TEL_ROTEIRO']):,}", "ok")
+    por_mes = {}
+    for mes in fechados + [mes_corrente]:
+        fechado = mes != mes_corrente
+        ate_m = ate if not fechado else pd.Timestamp(mes + "-01") + pd.offsets.MonthEnd(0)
+        Lm = lojas[lojas["ANO_MES"] == mes]
+        dias_mes = [d for d in m["DIM_CALENDARIO"].query("ANO_MES == @mes")["DATA"] if d <= ate_m]
+        total = metricas.kpis(Lm, fv, fp, dias_mes).iloc[0]
+        # conferências de soma: o total tem de ser a soma das partes, em qualquer corte da hierarquia
+        for por in ("COD_VENDEDOR", "N3_COD", "N2_COD", "N1_COD"):
+            if Lm[por].isna().any():
+                L.log(f"{mes}: conferencia de soma por {por} pulada: ha lojas sem {por} (hierarquia incompleta)", "aviso")
+                continue
+            k = metricas.kpis(Lm, fv, fp, dias_mes, por=por)
+            for c in soma_cols:
+                if int(k[c].sum()) != int(total[c]):
+                    L.abortar(f"{mes}: soma por {por} nao fecha com o total em {c}: {int(k[c].sum())} x {int(total[c])}.")
+            if abs(k["VALOR_PEDIDOS"].sum() - total["VALOR_PEDIDOS"]) > 0.01:
+                L.abortar(f"{mes}: soma por {por} nao fecha com o total em VALOR_PEDIDOS.")
+        dia_mes = diario[(diario["DATA"].dt.strftime("%Y-%m") == mes) & (diario["DATA"] <= ate_m)]
+        for c in ("ROTEIRO", "VISITADAS_NO_DIA"):                  # COM_PEDIDO no criterio "mes" depende da data final: nao se soma dia a dia
+            if int(dia_mes[c].sum()) != int(total[c]):
+                L.abortar(f"{mes}: DIARIO_VENDEDOR nao fecha com o total do mes em {c}: {int(dia_mes[c].sum())} x {int(total[c])}.")
+        ad = metricas.aderencia_mes(Lm, fv, ate_m).iloc[0]
+        if CFG["regras"]["pedido"]["criterio"] == "mes" and int(ad["VISITADAS_NO_MES"]) != int(total["VISITADAS_ATE_A_DATA"]):
+            L.abortar(f"{mes}: aderencia do mes ({int(ad['VISITADAS_NO_MES'])}) nao fecha com kpis.VISITADAS_ATE_A_DATA ({int(total['VISITADAS_ATE_A_DATA'])}).")
+        L.log(f"{'MES FECHADO' if fechado else 'MES CORRENTE'} {mes} ATE {ate_m:%d/%m/%Y} | roteiro vencido {int(total['ROTEIRO']):,} | visitadas no dia da rota "
+              f"{int(total['VISITADAS_NO_DIA']):,} ({total['PCT_VISITA_NO_DIA']:.1f}%) | fora do roteiro {int(total['FORA_DO_ROTEIRO']):,} | ADERENCIA NO MES (D-03) "
+              f"{int(ad['VISITADAS_NO_MES']):,}/{int(ad['ROTEIRO_VENCIDO']):,} = {ad['PCT_ADERENCIA_MES']:.1f}% | com pedido ({CFG['regras']['pedido']['criterio']}) "
+              f"{int(total['COM_PEDIDO']):,} | telefone com pedido {int(total['TEL_COM_PEDIDO']):,}/{int(total['TEL_ROTEIRO']):,}", "ok")
+        por_mes[mes] = {"ate": ate_m, "fechado": fechado, "_total": total.to_dict(), "_aderencia": ad.to_dict()}
+    L.log(f"somas por vendedor, supervisor, gerente e head = total; diario = mes ({len(por_mes)} mes(es): {list(por_mes)})", "ok")
     L.etapa_fim("ok")
-    return {"LOJA_MES": lojas, "DIARIO_VENDEDOR": diario, "_ate": ate, "_total": total.to_dict(), "_aderencia": ad.to_dict()}
+    return {"LOJA_MES": lojas, "DIARIO_VENDEDOR": diario, "_ate": ate, "_mes": mes_corrente, "_meses": por_mes,
+            "_total": por_mes[mes_corrente]["_total"], "_aderencia": por_mes[mes_corrente]["_aderencia"]}
 
 
-def _painel(m: dict, calc: dict, hier, si=None) -> dict:
-    """Um HTML por visão da hierarquia, em pasta LOCAL (D-28: nada é publicado até a validação final). A falha de uma visão
-    não derruba as outras: o arquivo dela não sai, o erro fica no log e a execução termina com exit code 1."""
+def _bases_por_mes(rota, ci, pd_) -> dict[str, str]:
+    """Carimbo 'bases de' por mês = data/hora do arquivo de base mais recente ENTRE OS QUE TÊM DADOS DAQUELE MÊS (não o relógio):
+    mesma base -> mesmo HTML, byte a byte. Sell-in não entra no carimbo (os 3 arquivos têm o mesmo nome em todas as pastas)."""
+    mtime = {a.name: a.stat().st_mtime for f in ("rota", "checkins", "pedidos") for a in comum.arquivos(f)}
+    out: dict[str, float] = {}
+    for df in (rota, ci, pd_):
+        for mes, g in df.groupby("ANO_MES"):
+            for nome in g["ARQUIVO_ORIGEM"].unique():
+                if nome in mtime:
+                    out[mes] = max(out.get(mes, 0), mtime[nome])
+    return {mes: datetime.fromtimestamp(t).strftime("%d/%m/%Y %H:%M") for mes, t in out.items()}
+
+
+def _painel(m: dict, calc: dict, hier, si=None, bases_mes: dict | None = None) -> dict:
+    """Um HTML por visão da hierarquia, em pasta LOCAL (D-28: nada é publicado até a validação final), com o mês corrente e os
+    meses fechados dentro (D-45). A falha de uma visão não derruba as outras: o arquivo dela não sai, o erro fica no log e a
+    execução termina com exit code 1."""
     L.etapa_inicio("4-5 · RENDERIZAR E VALIDAR OS PAINEIS")
     if hier is None:
         L.log("sem hierarquia nao ha visoes: paineis nao gerados", "aviso")
         L.etapa_fim("pulada")
         return {"paineis": {}, "falhas": []}
-    # carimbo do painel = arquivo de base mais recente (nao o relogio): mesma base -> mesmo HTML, byte a byte
-    mais_novo = max(a.stat().st_mtime for f in ("checkins", "pedidos") for a in comum.arquivos(f))
-    atualizado_em = datetime.fromtimestamp(mais_novo).strftime("%d/%m/%Y %H:%M")
+    bases_mes = bases_mes or {}
     niveis = CFG["painel"].get("niveis_gerados") or ["N1", "N2", "N3"]
     todas = estrutura.visoes(hier).to_dict("records")
     visoes = [v for v in todas if v["NIVEL"] in niveis]
-    P = painel.preparar(m, calc["LOJA_MES"], calc["_ate"], si)
-    if P["sellin"]:
-        L.log(f"sell-in no painel: faturado ate {P['sellin']['ate']} | pesos {P['sellin']['pesos'] or 'sem meta semanal (semana de segunda)'}", "ok")
+    meses = list(calc["_meses"])
+    P = {}
+    for mes, c in calc["_meses"].items():
+        P[mes] = painel.preparar(m, calc["LOJA_MES"], c["ate"], (si or {}).get(mes))
+        if P[mes]["sellin"]:
+            L.log(f"{mes}: sell-in no painel, faturado ate {P[mes]['sellin']['ate']} | pesos {P[mes]['sellin']['pesos'] or 'sem meta semanal (semana de segunda)'}", "ok")
+        elif si:
+            L.log(f"{mes}: sem sell-in deste mes em bases/SellIn (mes fechado precisa da subpasta {mes}/)", "aviso")
     dv = m["DIM_VENDEDOR"]
-    gerados, totais, falhas, nomes = {}, {}, [], set()
+    gerados, totais, falhas, nomes = {}, {mes: {} for mes in meses}, [], set()
     for v in visoes:
         nome = f"Painel_Rota_{v['NIVEL']}_{render.slug(v['ROTULO'])}.html"
         try:
-            J = painel.montar(P, dv, v, atualizado_em)
-            painel.validar(J, P, dv, v)
+            partes = []
+            for mes in meses:
+                Jm = painel.montar(P[mes], dv, v, bases_mes.get(mes, "—"), fechado=calc["_meses"][mes]["fechado"])
+                painel.validar(Jm, P[mes], dv, v)
+                totais[mes][v["ROTULO"]] = painel.totais(Jm)
+                partes.append(Jm)
+            J = painel.juntar(partes)
             arq = render.gerar(J, nome)
         except painel.PainelInvalido as e:
             falhas.append(str(e))
             L.log(f"painel NAO gerado — {e}", "erro")
             continue
         nomes.add(nome)
-        totais[v["ROTULO"]] = painel.totais(J)
-        gerados[v["ROTULO"]] = {"arquivo": str(arq), "kb": round(arq.stat().st_size / 1024, 1), **totais[v["ROTULO"]]}
-        L.log(f"{v['NIVEL']} {v['ROTULO']:<46} {len(J['vend']):>2} vendedores {len(J['lojas']):>5,} lojas -> {arq.name} ({arq.stat().st_size / 1024:,.0f} KB)", "ok")
-    for e in painel.conferir_niveis(totais, visoes):
-        falhas.append(e)
-        L.log("soma entre niveis — " + e, "erro")
+        tc = totais[calc["_mes"]][v["ROTULO"]]
+        gerados[v["ROTULO"]] = {"arquivo": str(arq), "kb": round(arq.stat().st_size / 1024, 1), "meses": meses, **tc}
+        L.log(f"{v['NIVEL']} {v['ROTULO']:<46} {len(partes[-1]['vend']):>2} vendedores {len(partes[-1]['lojas']):>5,} lojas | {len(meses)} mes(es) -> {arq.name} ({arq.stat().st_size / 1024:,.0f} KB)", "ok")
+    for mes in meses:
+        for e in painel.conferir_niveis(totais[mes], visoes):
+            falhas.append(f"{mes}: {e}")
+            L.log(f"soma entre niveis ({mes}) — {e}", "erro")
     if not falhas and len(niveis) > 1:
-        L.log(f"{len(gerados)} paineis: zero vazamento, cards = lista de lojas em todos os dias, supervisores somam o gerente e gerentes somam o head", "ok")
+        L.log(f"{len(gerados)} paineis: zero vazamento, cards = lista de lojas em todos os dias, supervisores somam o gerente e gerentes somam o head, em {len(meses)} mes(es)", "ok")
     for velho in render.PASTA_PAINEL.glob("Painel_Rota_*.html"):          # painel de visao que deixou de existir (ou falhou) nao fica para tras
         if velho.name not in nomes:
             velho.unlink()
@@ -242,9 +308,10 @@ def executar(forcar: bool = False, modo_publicacao: str = "plano") -> int:
     rota, ci, pd_, hier, cli = info.pop("_dados")
     cruz_sellin = info.pop("_sellin")
     si = info.pop("_si")
+    bases_mes = info.pop("_bases_mes")
     m = _modelar(rota, ci, pd_, hier, cli)
     calc = _calcular(m)
-    gerados = _painel(m, calc, hier, si)
+    gerados = _painel(m, calc, hier, si, bases_mes)
 
     L.etapa_inicio("GRAVAR (camada curada + qualidade)")
     for nome, df in {**m, "LOJA_MES": calc["LOJA_MES"], "DIARIO_VENDEDOR": calc["DIARIO_VENDEDOR"]}.items():
@@ -255,6 +322,10 @@ def executar(forcar: bool = False, modo_publicacao: str = "plano") -> int:
         parquet.salvar(vis.assign(N3_CODS=vis["N3_CODS"].map(";".join), EXECUCAO_ID=L.EXECUCAO_ID), "DIM_VISAO")
     info["qualidade"] = qualidade.gerar(m, calc["LOJA_MES"], L.contagens(), info["problemas_depara"], cruz_sellin)
     info["dados_ate"] = str(calc["_ate"].date())
+    info["mes_corrente"] = calc["_mes"]
+    info["meses"] = {mes: {"ate": str(c["ate"].date()), "fechado": c["fechado"],
+                           "total": {k: (round(float(v), 2) if v == v else None) for k, v in c["_total"].items() if k != "GRUPO"}}
+                     for mes, c in calc["_meses"].items()}
     info["paineis"], info["falhas_paineis"] = gerados["paineis"], gerados["falhas"]
     info["total_mes"] = {k: (round(float(v), 2) if v == v else None) for k, v in calc["_total"].items() if k != "GRUPO"}
     info["aderencia_mes"] = {k: (round(float(v), 2) if v == v else None) for k, v in calc["_aderencia"].items() if k != "GRUPO"}

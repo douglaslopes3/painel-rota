@@ -80,15 +80,22 @@ def preparar(m: dict[str, pd.DataFrame], lojas: pd.DataFrame, ate: pd.Timestamp,
         si_meta = {"ate": f"{ult:%d/%m/%Y}", "pesos": pesos, "semanas": [str(x["nome"]) for x in calendario.faixas()] if pesos else [],
                    "faixas": CFG["painel"]["faixas_meta_sellin"]}
     return {"ate": ate, "mes": mes, "L": L, "dias_rota": dias_rota, "agg": agg, "jornada_dia": metricas.jornada_dia(fv), "vis": vis, "ped": ped,
-            "fat": fat, "sellin": si_meta, "pesos": pesos,
+            "fat": fat, "sellin": si_meta, "pesos": pesos, "logins": set(fv["LOGIN"].dropna()),
+            "nomes_rota": L.drop_duplicates("COD_VENDEDOR").set_index("COD_VENDEDOR")["EXECUTIVO"].to_dict(),
             "checkins_ate": fv["DATA"].max() if len(fv) else pd.NaT, "pedidos_ate": fp["DATA_EMISSAO"].max() if len(fp) else pd.NaT}
 
 
-def montar(P: dict, dv: pd.DataFrame, visao: dict, atualizado_em: str) -> dict:
-    """`atualizado_em` = data/hora do arquivo de base mais recente (não o relógio): mesma base -> mesmo HTML, byte a byte."""
+def montar(P: dict, dv: pd.DataFrame, visao: dict, atualizado_em: str, fechado: bool = False) -> dict:
+    """Um MÊS de uma visão. `atualizado_em` = data/hora do arquivo de base mais recente (não o relógio): mesma base -> mesmo HTML.
+    D-45: os vendedores do mês são as posições da visão COM LOJAS na rota do mês; no mês fechado o nome é o `Executivo` da rota
+    daquele mês (o nome da época), no corrente é o do de-para; "usa o app" = login com check-in NO MÊS."""
     ate, n3 = P["ate"], set(visao["N3_CODS"])
     L = P["L"][P["L"]["N3_COD"].isin(n3)]
-    vend = dv[dv["N3_COD"].isin(n3)].sort_values(["N3_NOME", "N4_NOME", "N4_COD"]).reset_index(drop=True)
+    vend = dv[dv["N3_COD"].isin(n3) & dv["N4_COD"].isin(set(L["COD_VENDEDOR"]))].copy()
+    if fechado:
+        vend["N4_NOME"] = vend["N4_COD"].map(P["nomes_rota"]).fillna(vend["N4_NOME"])
+    vend["USA_APP"] = vend["LOGIN_MERCANET"].isin(P["logins"])
+    vend = vend.sort_values(["N3_NOME", "N4_NOME", "N4_COD"]).reset_index(drop=True)
     sups = vend.drop_duplicates("N3_COD")[["N3_COD", "N3_NOME"]].reset_index(drop=True)
     i_sup = {c: i for i, c in enumerate(sups["N3_COD"])}
     i_vend = {c: i for i, c in enumerate(vend["N4_COD"])}
@@ -114,6 +121,8 @@ def montar(P: dict, dv: pd.DataFrame, visao: dict, atualizado_em: str) -> dict:
     ci, pe = P["checkins_ate"], P["pedidos_ate"]
     return {
         "meta": {"visao": visao["ROTULO"], "nome": visao["NOME"].title(), "nivel": visao["NIVEL"], "mes": f"{_MESES[ate.month - 1]}/{ate.year}",
+                 "ano_mes": P["mes"], "fechado": bool(fechado), "periodo_inicial": CFG["painel"].get("periodo_inicial") or "dia",
+                 "meses_fechados": int(CFG["painel"].get("meses_fechados") or 0),
                  "dados_ate": f"{ate:%Y-%m-%d}", "checkins_ate": None if pd.isna(ci) else f"{ci:%d/%m/%Y}", "pedidos_ate": None if pd.isna(pe) else f"{pe:%d/%m/%Y}",
                  "atualizado_em": atualizado_em, "criterio_pedido": CFG["regras"]["pedido"]["criterio"],
                  "faixas": CFG["painel"]["faixas"], "rotulo_valor": CFG["painel"]["rotulo_valor"],
@@ -140,7 +149,8 @@ def validar(J: dict, P: dict, dv: pd.DataFrame, visao: dict) -> None:
     no_arquivo = {l[0] for l in J["lojas"]}
     if no_arquivo != esperado:
         raise PainelInvalido(f"'{rot}': VAZAMENTO ou falta de lojas — {len(no_arquivo - esperado)} de fora da visao, {len(esperado - no_arquivo)} faltando.")
-    if {v["cod"] for v in J["vend"]} != set(dv[dv["N3_COD"].isin(n3)]["N4_COD"]) or {s["cod"] for s in J["sups"]} != n3:
+    esperados = set(dv[dv["N3_COD"].isin(n3)]["N4_COD"]) & set(P["L"]["COD_VENDEDOR"])
+    if {v["cod"] for v in J["vend"]} != esperados or not {s["cod"] for s in J["sups"]} <= n3:
         raise PainelInvalido(f"'{rot}': vendedores ou supervisores do arquivo diferentes dos da visao.")
     if any(len(t) != len(J["vend"]) for e in J["agg"].values() for t in e) or any(len(h) != len(J["vend"]) for h in J["horarios"]):
         raise PainelInvalido(f"'{rot}': tabelas de indicadores com numero de linhas diferente do numero de vendedores.")
@@ -162,6 +172,23 @@ def validar(J: dict, P: dict, dv: pd.DataFrame, visao: dict) -> None:
                 raise PainelInvalido(f"'{rot}', {d['lab']}: faturado do mes nos cards ({cards:,.2f}) diferente da lista de lojas ({lista:,.2f}).")
     if sum(v[C["LOJAS_SI"]] for v in J["agg"]["mes"][0]) != len(J["lojas"]):
         raise PainelInvalido(f"'{rot}': lojas do sell-in diferentes das lojas da visao.")
+
+
+_META_COMUM = ("visao", "nome", "nivel", "criterio_pedido", "faixas", "rotulo_valor", "situacoes_excluidas", "dias_que_nao_contam",
+               "periodo_inicial", "meses_fechados")
+
+
+def juntar(partes: list[dict]) -> dict:
+    """D-45: os meses de uma visão num JSON só. `meses` em ordem cronológica; `corrente` = índice do mês em andamento (o último).
+    O que é comum à visão fica em `meta`; o que muda por mês (datas, dias, vendedores, indicadores, lojas) fica no bloco do mês."""
+    partes = sorted(partes, key=lambda j: j["meta"]["ano_mes"])
+    fechados = [j for j in partes if j["meta"]["fechado"]]
+    if len(partes) - len(fechados) != 1 or partes[-1]["meta"]["fechado"]:
+        raise PainelInvalido("juntar: esperava exatamente um mes corrente, o mais recente.")
+    ult = partes[-1]
+    return {"meta": {k: ult["meta"][k] for k in _META_COMUM}, "cols": ult["cols"], "lojas_cols": ult["lojas_cols"], "corrente": len(partes) - 1,
+            "meses": [{"meta": {k: v for k, v in j["meta"].items() if k not in _META_COMUM}, "dias": j["dias"], "sups": j["sups"], "vend": j["vend"],
+                       "agg": j["agg"], "horarios": j["horarios"], "lojas": j["lojas"]} for j in partes]}
 
 
 def totais(J: dict) -> dict[str, int]:

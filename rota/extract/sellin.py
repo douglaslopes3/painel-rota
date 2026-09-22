@@ -35,9 +35,29 @@ _RE_COD_N4 = re.compile(r"\((\d+)\)\s*$")
 
 
 def arquivos() -> dict[str, Path]:
+    """Os 3 arquivos do mês CORRENTE (raiz da pasta)."""
     cfg = CFG["fontes"]["sellin"]
     pasta = caminho(cfg["pasta"])
     return {k: pasta / a["arquivo"] for k, a in cfg["arquivos"].items()}
+
+
+def pastas_meses_fechados() -> dict[str, Path]:
+    """D-45: subpastas `AAAA-MM` da pasta do sell-in = meses fechados."""
+    cfg = CFG["fontes"]["sellin"]
+    pasta = caminho(cfg["pasta"])
+    rx = re.compile(cfg.get("subpasta_mes_regex") or r"^\d{4}-\d{2}$")
+    if not pasta.exists():
+        return {}
+    return {d.name: d for d in sorted(pasta.iterdir()) if d.is_dir() and rx.match(d.name)}
+
+
+def todos_arquivos() -> list[Path]:
+    """Raiz + subpastas de mês fechado (os que existem) — para o manifesto."""
+    cfg = CFG["fontes"]["sellin"]
+    out = [a for a in arquivos().values() if a.exists()]
+    for d in pastas_meses_fechados().values():
+        out += [d / a["arquivo"] for a in cfg["arquivos"].values() if (d / a["arquivo"]).exists()]
+    return out
 
 
 def ler_arquivo(arq: Path, tipo: str | None = None) -> tuple[pd.DataFrame, dict]:
@@ -110,8 +130,25 @@ def ler_arquivo(arq: Path, tipo: str | None = None) -> tuple[pd.DataFrame, dict]
     return df.reset_index(drop=True), extra
 
 
-def carregar(forcar: bool = False) -> dict[str, pd.DataFrame] | None:
-    """Os 3 arquivos, ou None quando a fonte não está completa e não é obrigatória."""
+def _carregar_pasta(rotulo: str, arqs: dict[str, Path], forcar: bool) -> tuple[dict[str, pd.DataFrame], list[str]]:
+    out, meses, filtros = {}, {}, {}
+    for tipo, a in arqs.items():
+        df, x = cache.ler(a, ler_arquivo, forcar)
+        contar(f"{rotulo}/{a.name}" if rotulo else a.name, x["lidas"], x["rodape"], rodape=x["rodape"], meses=x["meses"],
+               reconciliado=bool(x["gabarito"]), somas=x["somas"])
+        if x["gabarito"]:
+            log(f"{rotulo + '/' if rotulo else ''}{a.name}: reconciliado com a linha Total em {list(x['gabarito'])}", "ok")
+        out[tipo], meses[tipo], filtros[tipo] = df, x["meses"], x["filtros"]
+    if len({tuple(m) for m in meses.values()}) > 1:
+        log(f"sell-in {rotulo or 'corrente'}: os 3 arquivos nao cobrem os mesmos meses {meses} — foram extraidos com filtros diferentes?", "aviso")
+    if len(set(filtros.values())) > 1:
+        log(f"sell-in {rotulo or 'corrente'}: os 3 arquivos tem 'Filtros aplicados' DIFERENTES — conferir a extracao no BI", "aviso")
+    return out, sorted(set(m for ms in meses.values() for m in ms))
+
+
+def carregar(forcar: bool = False) -> dict[str, dict[str, pd.DataFrame]] | None:
+    """Sell-in por mês: {`AAAA-MM`: {cliente, carteira, faturado}}. A raiz da pasta é o mês corrente; cada subpasta `AAAA-MM`
+    é um mês fechado (D-45) e o mês do conteúdo tem de ser o da subpasta. None = raiz ausente e fonte não obrigatória."""
     cfg = CFG["fontes"]["sellin"]
     arqs = arquivos()
     faltam = [a.name for a in arqs.values() if not a.exists()]
@@ -121,18 +158,23 @@ def carregar(forcar: bool = False) -> dict[str, pd.DataFrame] | None:
             abortar(msg)
         log(msg, "aviso")
         return None
-    out, meses, filtros = {}, {}, {}
-    for tipo, a in arqs.items():
-        df, x = cache.ler(a, ler_arquivo, forcar)
-        contar(a.name, x["lidas"], x["rodape"], rodape=x["rodape"], meses=x["meses"], reconciliado=bool(x["gabarito"]), somas=x["somas"])
-        if x["gabarito"]:
-            log(f"{a.name}: reconciliado com a linha Total em {list(x['gabarito'])}", "ok")
-        out[tipo], meses[tipo], filtros[tipo] = df, x["meses"], x["filtros"]
-    if len({tuple(m) for m in meses.values()}) > 1:
-        log(f"sell-in: os 3 arquivos nao cobrem os mesmos meses {meses} — foram extraidos com filtros diferentes?", "aviso")
-    if len(set(filtros.values())) > 1:
-        log("sell-in: os 3 arquivos tem 'Filtros aplicados' DIFERENTES — conferir a extracao no BI", "aviso")
-    return out
+    por_mes: dict[str, dict[str, pd.DataFrame]] = {}
+    corrente, meses = _carregar_pasta("", arqs, forcar)
+    if len(meses) != 1:
+        abortar(f"sell-in: a raiz de {cfg['pasta']} deveria ter UM mes (o corrente), achei {meses}.")
+    por_mes[meses[0]] = corrente
+    for nome, d in pastas_meses_fechados().items():
+        sub = {k: d / a["arquivo"] for k, a in cfg["arquivos"].items()}
+        faltam = [a.name for a in sub.values() if not a.exists()]
+        if faltam:
+            abortar(f"sell-in: subpasta {nome} incompleta — falta(m) {faltam} (mes fechado precisa dos 3 arquivos).")
+        dados, ms = _carregar_pasta(nome, sub, forcar)
+        if ms != [nome]:
+            abortar(f"sell-in: a subpasta {nome} tem dados do(s) mes(es) {ms}; o mes da subpasta tem de ser o mes do conteudo.")
+        if nome in por_mes:
+            abortar(f"sell-in: o mes {nome} esta na raiz E na subpasta {nome} — o mes corrente fica so na raiz.")
+        por_mes[nome] = dados
+    return por_mes
 
 
 def conferir(si: dict[str, pd.DataFrame]) -> tuple[list[str], pd.DataFrame]:

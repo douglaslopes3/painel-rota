@@ -24,7 +24,7 @@ for _f in (sys.stdout, sys.stderr):
 
 from rota.extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal, sellin  # noqa: E402
 from rota.utils import texto as T  # noqa: E402
-from rota.utils.config import RAIZ  # noqa: E402
+from rota.utils.config import CFG, RAIZ  # noqa: E402
 
 TMP = Path(tempfile.mkdtemp(prefix="rota_testes_"))
 
@@ -207,6 +207,23 @@ def test_conferir_por_codigo_resolve_o_vago_e_acusa_supervisor_trocado():
     assert any("supervisor da rota nao bate" in p and "CICRANO LIMA" in p for p in prob)
 
 
+def test_hierarquia_coluna_encerrada_em_e_opcional_e_marca_a_posicao():
+    """D-45: sem a coluna, toda posicao e ativa; com data, a posicao e encerrada (sem exigir login nem loja no mes corrente)."""
+    df, x = estrutura.ler_arquivo(_hier("h_semcol.xlsx", H_OK))
+    assert x["encerradas"] == 0 and df["ATIVA"].all()
+    a = TMP / "h_enc.xlsx"
+    linhas = [[20, "ATACADO", "HEAD UM", g, "Ger", gn, s, "Superv", sn, c, "Vend", n, "Projeto Rota", lg, None, enc]
+              for (g, gn, s, sn, c, n, lg), enc in zip(H_OK, [None, "2026-09-30", None, None])]
+    pd.DataFrame(linhas, columns=CAB_H + ["ENCERRADA EM"]).to_excel(a, sheet_name="Hierarquia", index=False)
+    df, x = estrutura.ler_arquivo(a)
+    assert x["encerradas"] == 1 and df.set_index("N4_COD")["ATIVA"].to_dict() == {"101": True, "103": False, "118": True, "127": True}
+    rota = pd.DataFrame({"ANO_MES": ["2026-09", "2026-10", "2026-10", "2026-10"], "EXECUTIVO": ["BELTRANO SOUZA", "FULANO SILVA", "[VAGO]", "CICRANO LIMA"],
+                         "SUPERVISOR": ["Marco", "Marco", "Robson", "Adriana"], "COD_VENDEDOR": pd.array(["103", "101", "118", "127"], dtype="string")})
+    prob = " | ".join(estrutura.conferir(df, rota, pd.DataFrame({"LOGIN": ["FSILVA"]}), mes_corrente="2026-10"))
+    assert "103" not in prob                                                   # encerrada: sem login e sem loja em outubro, tudo bem
+    assert "118" in prob and "sem LOGIN" in prob                               # ativa sem login continua sendo problema
+
+
 def test_rota_com_codigo_do_vendedor():
     a = _rota("Rota_e.xlsx", ["2026-10-01", "2026-10-02"], [1000001, 1000002])
     d = pd.read_excel(a, sheet_name="Base de Clientes"); d.insert(2, "Cód. vendedor", [101, 101])
@@ -261,6 +278,35 @@ def test_sellin_codigo_do_vendedor_sai_do_n4_e_conferencia_aponta_diferenca():
     fat = pd.DataFrame({"COD_CLIENTE": ["1004628", "1004629"], "RECEITA": [50.0, 7.0]})
     avisos, lista = sellin.conferir({"cliente": c, "carteira": cart, "faturado": fat})
     assert len(avisos) == 1 and lista["COD_CLIENTE"].tolist() == ["1004629"]      # carteira fecha; faturado do 1004629 nao esta no cliente
+
+
+def _pasta_sellin(pasta: Path, mes: str) -> None:
+    """Os 3 exports de um mes numa pasta, com os nomes do config."""
+    pasta.mkdir(parents=True, exist_ok=True)
+    nomes = {k: a["arquivo"] for k, a in CFG["fontes"]["sellin"]["arquivos"].items()}
+    am = mes.replace("-", "/")
+    cli = [[am, "0001004628", "LOJA A", "A", "BH", "H", "G (22000)", "S (2220)", "RODRIGO MATOS (128)", 10.0, 5.0, 50.0, None]]
+    pd.DataFrame(cli + [["Total"] + [None] * 8 + [10.0, 5.0, 50.0, None]], columns=_CAB_SI_CLI).to_excel(pasta / nomes["cliente"], index=False)
+    pd.DataFrame([[am, "0111000001", pd.Timestamp(mes + "-10"), "0001004628", 5.0], ["Total", None, None, None, 5.0]], columns=_CAB_SI_CART).to_excel(pasta / nomes["carteira"], index=False)
+    fat = pd.DataFrame([[am, "0111000002", pd.Timestamp(mes + "-03"), pd.Timestamp(mes + "-05"), "0001004628", 50.0], ["Total", None, None, None, None, 50.0]],
+                       columns=["Ano mês", "Numero Pedido", "Data Pedido", "Data Faturamento", "Cód. cliente", "Receita Líquida"])
+    fat.to_excel(pasta / nomes["faturado"], index=False)
+
+
+def test_sellin_raiz_e_mes_corrente_e_subpasta_e_mes_fechado():
+    """D-45: raiz = corrente; subpasta AAAA-MM = mes fechado, cujo conteudo tem de ser desse mes."""
+    base = TMP / "sellin_ok"
+    _pasta_sellin(base, "2026-10"); _pasta_sellin(base / "2026-09", "2026-09")
+    antes = CFG["fontes"]["sellin"]["pasta"]
+    CFG["fontes"]["sellin"]["pasta"] = str(base)
+    try:
+        si = sellin.carregar(forcar=True)
+        assert sorted(si) == ["2026-09", "2026-10"] and si["2026-09"]["faturado"]["RECEITA"].sum() == 50.0
+        assert len(sellin.todos_arquivos()) == 6
+        _pasta_sellin(base / "2026-08", "2026-07")                             # subpasta com mes errado aborta
+        assert aborta(sellin.carregar, True)
+    finally:
+        CFG["fontes"]["sellin"]["pasta"] = antes
 
 
 # ------------------------------------------------------------------ cadastro de nomes (D-38)

@@ -59,7 +59,14 @@ def ler_arquivo(arq: Path) -> tuple[pd.DataFrame, dict]:
         bruto = pd.read_excel(arq, sheet_name=cfg["aba"], engine="calamine", dtype=object)
     except ValueError:
         abortar(f"{arq.name}: aba '{cfg['aba']}' nao encontrada.")
-    df = _mapear(bruto.dropna(how="all"), cfg["colunas"], arq).reset_index(drop=True)
+    bruto = bruto.dropna(how="all")
+    df = _mapear(bruto, cfg["colunas"], arq).reset_index(drop=True)
+    # D-45: colunas opcionais (ENCERRADA_EM): entram se existirem; ausentes ficam vazias
+    norm = {chave_texto(c): c for c in bruto.columns}
+    for destino, aceitos in (cfg.get("colunas_opcionais") or {}).items():
+        achou = [c for n, c in norm.items() if any(n == chave_texto(a) or n.endswith(" " + chave_texto(a)) for a in aceitos)]
+        df[destino] = bruto[achou[0]].reset_index(drop=True) if len(achou) == 1 else pd.NA
+    df["ENCERRADA_EM"] = pd.to_datetime(df["ENCERRADA_EM"], errors="coerce") if "ENCERRADA_EM" in df else pd.NaT
 
     for c in _CODIGOS:
         df[c] = digitos(df[c])
@@ -85,9 +92,11 @@ def ler_arquivo(arq: Path) -> tuple[pd.DataFrame, dict]:
 
     for n in NIVEIS:
         df[f"{n}_ROTULO"] = df[f"{n}_COD"] + " - " + df[f"{n}_PAPEL"].fillna("") + " - " + df[f"{n}_NOME"]
-    df = df.astype({c: "string" for c in df.columns})
+    df = df.astype({c: "string" for c in df.columns if c != "ENCERRADA_EM"})
+    df["ATIVA"] = df["ENCERRADA_EM"].isna()
     extra = {"posicoes": len(df), "n1": int(df["N1_COD"].nunique()), "n2": int(df["N2_COD"].nunique()),
-             "n3": int(df["N3_COD"].nunique()), "com_login": int(df["LOGIN_MERCANET"].notna().sum())}
+             "n3": int(df["N3_COD"].nunique()), "com_login": int(df["LOGIN_MERCANET"].notna().sum()),
+             "encerradas": int((~df["ATIVA"]).sum())}
     return df, extra
 
 
@@ -102,13 +111,21 @@ def visoes(hier: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(linhas)
 
 
-def conferir(hier: pd.DataFrame, rota: pd.DataFrame, checkins: pd.DataFrame) -> list[str]:
+def conferir(hier: pd.DataFrame, rota: pd.DataFrame, checkins: pd.DataFrame, mes_corrente: str | None = None) -> list[str]:
     """Problemas entre a hierarquia, a rota e os check-ins. Lista vazia = fechado.
 
     Chave rota ↔ hierarquia: o CÓDIGO do vendedor quando a rota traz a coluna
-    (`COD_VENDEDOR`); senão o NOME do executivo — que só serve enquanto for único."""
+    (`COD_VENDEDOR`); senão o NOME do executivo — que só serve enquanto for único.
+
+    D-45: com `mes_corrente`, a rota pode ter vários meses. Todo código da rota (qualquer mês) precisa de posição; nome, supervisor
+    e "posição sem cliente na rota" são conferidos só na rota do mês corrente e só para posições ATIVAS (sem ENCERRADA_EM)."""
     p: list[str] = []
-    por_codigo = "COD_VENDEDOR" in rota.columns and rota["COD_VENDEDOR"].notna().all()
+    todos = rota
+    if mes_corrente is not None and "ANO_MES" in rota.columns:
+        rota = rota[rota["ANO_MES"] == mes_corrente]
+    ativa = hier["ATIVA"] if "ATIVA" in hier.columns else pd.Series(True, index=hier.index)
+    hier_ativa = hier[ativa]
+    por_codigo = "COD_VENDEDOR" in todos.columns and todos["COD_VENDEDOR"].notna().all()
     if por_codigo:
         na_rota, no_depara, o_que = set(rota["COD_VENDEDOR"]), set(hier["N4_COD"]), "codigo(s) de vendedor"
         nome_rota = rota.drop_duplicates("COD_VENDEDOR").set_index("COD_VENDEDOR")["EXECUTIVO"]
@@ -123,10 +140,13 @@ def conferir(hier: pd.DataFrame, rota: pd.DataFrame, checkins: pd.DataFrame) -> 
         if rep:
             p.append(f"a rota nao traz o codigo do vendedor e o NOME nao e unico na hierarquia: {rep} "
                      f"({int(hier['N4_NOME'].isin(rep).sum())} posicoes) — os clientes desses nomes ficam sem posicao definida")
-    if na_rota - no_depara:
-        p.append(f"{o_que} da rota sem posicao na hierarquia: {sorted(na_rota - no_depara)}")
-    if no_depara - na_rota:
-        p.append(f"{o_que} da hierarquia sem nenhum cliente na rota: {sorted(no_depara - na_rota)}")
+    todos_na_rota = set(todos["COD_VENDEDOR"]) if por_codigo else set(todos["EXECUTIVO"].dropna())
+    if todos_na_rota - no_depara:
+        p.append(f"{o_que} da rota sem posicao na hierarquia: {sorted(todos_na_rota - no_depara)}"
+                 + (" (vendedor que saiu continua no de-para, com ENCERRADA EM)" if mes_corrente else ""))
+    no_depara_ativa = set(hier_ativa["N4_COD"]) if por_codigo else set(hier_ativa["N4_NOME"].dropna())
+    if no_depara_ativa - na_rota:
+        p.append(f"{o_que} da hierarquia sem nenhum cliente na rota: {sorted(no_depara_ativa - na_rota)}")
 
     # coerência do supervisor: a rota traz só o primeiro nome; confere contra o N3 da posição do executivo
     chave_r, chave_h = ("COD_VENDEDOR", "N4_COD") if por_codigo else ("EXECUTIVO", "N4_NOME")
@@ -142,7 +162,7 @@ def conferir(hier: pd.DataFrame, rota: pd.DataFrame, checkins: pd.DataFrame) -> 
     if dup:
         p.append(f"login usado em mais de uma posicao: {dup}")
     aceitas = {str(c) for c in (CFG["fontes"]["estrutura"].get("posicoes_sem_login_aceitas") or [])}      # posto vago conhecido (D-39)
-    sem = hier[hier["LOGIN_MERCANET"].isna() & ~hier["N4_COD"].isin(aceitas)]
+    sem = hier_ativa[hier_ativa["LOGIN_MERCANET"].isna() & ~hier_ativa["N4_COD"].isin(aceitas)]
     if len(sem):
         p.append(f"{len(sem)} posicao(oes) sem LOGIN MERCANET (check-ins nao serao atribuidos): "
                  f"{[f'{c} {n}' for c, n in zip(sem['N4_COD'], sem['N4_NOME'])]}")

@@ -45,13 +45,22 @@ copia nada. Quem vira para `true` é o Douglas, uma vez, depois da validação c
 Regras da cópia: tudo ou nada (se um painel falhar na geração, nenhum é publicado); o arquivo vai para um `.tmp` e troca de nome
 no fim; o md5 é conferido depois; nada é apagado na pasta do usuário (os painéis do Gerencial e do DN moram lá).
 
-## Virada do mês (≈ 1 hora)
+## Virada do mês (≈ 1 hora) — D-45: o mês fechado continua no painel
 
-1. Rota do mês novo (vem do Gui, 13 colunas, com `Cód. vendedor`) → `bases/Rota/`. A do mês anterior vai para `bases/Rota/_versoes/`.
-2. Lojas novas da rota → incluir código e nome em `bases/Estrutura/Clientes_Rota.xlsx`. Se faltar alguma, o log avisa quantas.
-3. Feriados do mês → `calendario.feriados` no config (feriado não conta como visita, D-32).
-4. Mês fechado → reextrair check-ins e pedidos do mês inteiro no Mercanet e guardar ao lado do arquivo do mês corrente (D-07).
-   **A PREENCHER:** nome de arquivo combinado para o mês fechado (ex.: `Mercanet_2026-09.csv`).
+1. Rota do mês novo (vem do Gui, 13 colunas, com `Cód. vendedor`) → `bases/Rota/`. **A do mês anterior FICA na pasta** (é ela que dá o
+   mês fechado); `_versoes/` é só para versão substituída de um mesmo mês.
+2. Extrações de check-ins e pedidos do mês novo com o mês no nome (`Mercanet_2026-10.csv`, `Pedidos_2026-10.csv`); as do mês anterior
+   ficam ao lado, com o nome delas. Dois arquivos do MESMO mês na mesma pasta abortam (D-13).
+3. Sell-in do mês novo nos 3 arquivos da raiz de `bases/SellIn/` (mesmos nomes de sempre).
+4. **Dia 5 do mês seguinte:** reextrair o mês fechado UMA vez — check-ins e pedidos do mês inteiro (substituindo os arquivos do mês
+   fechado) e os 3 exports do BI com o filtro "Ano mês" do mês fechado, salvos em `bases/SellIn/AAAA-MM/` (ex.: `bases/SellIn/2026-09/`).
+   Depois disso o mês fechado não é mais tocado.
+5. Lojas novas da rota → incluir código e nome em `bases/Estrutura/Clientes_Rota.xlsx`. Se faltar alguma, o log avisa quantas.
+6. Feriados do mês → `calendario.feriados` no config (feriado não conta como visita, D-32).
+7. Vendedor que saiu → data na coluna `ENCERRADA EM` do de-para (a posição fica lá, para os meses fechados). Vendedor novo → linha nova
+   no de-para e no filtro N4 dos exports do BI.
+
+No painel, o seletor "Mês" mostra o mês em andamento e os últimos 12 meses fechados (`painel.meses_fechados`).
 
 ## Quando algo muda
 
@@ -61,6 +70,7 @@ no fim; o md5 é conferido depois; nada é apagado na pasta do usuário (os pain
 | Uma posição ficou vaga | nome `[VAGO]` no de-para e na rota, e o código N4 em `fontes.estrutura.posicoes_sem_login_aceitas` (a 121 foi preenchida em 22/09, D-43) |
 | **Os pesos das semanas do sell-in** (S1 30 · S2 30 · S3 20 · S4 20, a confirmar com o time) | editar `metas_sellin.pesos` no config (somam 100), rodar `python run_rota.py`; o rodapé do painel mostra os pesos em uso. Mês com pesos próprios: `metas_sellin.pesos_por_mes`. Faixas das semanas: `calendario.semanas_do_mes` |
 | Voltar a semana para "segunda até o dia" (D-02) | `calendario.semana: segunda` — o sell-in fica sem meta semanal |
+| Quantos meses fechados ficam no painel | `painel.meses_fechados` (12). O período em que a tabela abre: `painel.periodo_inicial` (mes) |
 | Uma regra de negócio | editar a lista no config (`regras.*`), rodar os testes, registrar a decisão em `docs/10_DECISOES.md` |
 | Vendedor novo no Projeto Rota | incluir o nome dele no filtro `Nome Vendedor Novo (N4)` dos 3 exports do BI, além do de-para |
 | Nome de loja errado | corrigir em `Clientes_Rota.xlsx` |

@@ -14,8 +14,8 @@ local, validados; **nada é publicado** até tudo estar sem pendências e valida
 cd "C:\Users\dldsouza\OneDrive - Dori Alimentos S.A\Documentos\Painéis - Alavancas\ROTA"
 python run_rota.py            # verificar -> ingerir -> modelar -> calcular -> painel (pasta local) -> gravar curated + qualidade   (~5 s)
 python run_rota.py --forcar   # relê todas as bases ignorando o cache
-python tests/test_leitores.py # 27 testes dos leitores (não precisa de pytest)
-python tests/test_regras.py   # 22 testes das regras de visita, pedido, indicadores e sell-in
+python tests/test_leitores.py # 29 testes dos leitores (não precisa de pytest)
+python tests/test_regras.py   # 23 testes das regras de visita, pedido, indicadores, sell-in e meses
 python run_rota.py --ensaio       # ensaia a publicacao em pasta local (nao toca em Paineis Comerciais)
 python run_rota.py --publicar     # publica — so com publicacao.liberada: true no config (D-28)
 python tests/test_publicar.py     # trava, tudo ou nada e copia conferida (D-39)
@@ -40,8 +40,9 @@ Regras de operação:
 - **O mês vem do conteúdo**, nunca do nome do arquivo. Dois arquivos da mesma fonte com o mesmo mês **abortam de
   propósito** (uma cópia de conflito do OneDrive dobraria o mês): substitua, nunca adicione. Versão antiga vai para uma
   subpasta (`_versoes/`), que não é lida.
-- **Mês fechado:** quando o mês vira, extrair do Mercanet o mês fechado inteiro (check-ins e pedidos) e deixar na pasta
-  ao lado do arquivo do mês corrente (ex.: `Mercanet_2026-09.csv` + `Mercanet.csv`). É assim que o histórico se forma (D-07).
+- **Mês fechado (D-45):** as bases do mês anterior FICAM em `bases/` com o mês no nome (`Rota_…`, `Mercanet_2026-09.csv`,
+  `Pedidos_2026-09.csv`, `SellIn/2026-09/`), reextraídas uma vez no dia 5 do mês seguinte. O painel de cada usuário traz o mês
+  corrente e os últimos 12 meses fechados, com seletor de mês; `_versoes/` é só para versão substituída.
 - A soma de `Pedidos` tem de bater com o rodapé do próprio arquivo (valor do pedido, quantidade e valor bruto).
 
 ## Estrutura
@@ -61,7 +62,7 @@ run_rota.py · requirements.txt
 
 ## O painel
 
-Um por visão da hierarquia (`painel.niveis_gerados`), em `%LOCALAPPDATA%\Dori\ROTA\painel\Painel_Rota_<nível>_<rótulo>.html` (fora do
+Um por visão da hierarquia (`painel.niveis_gerados`), com o mês corrente e os meses fechados dentro (seletor de mês, D-45), em `%LOCALAPPDATA%\Dori\ROTA\painel\Painel_Rota_<nível>_<rótulo>.html` (fora do
 OneDrive), 37 a 99 KB, autocontido, só com os dados da própria visão (recorte físico, conferido a cada execução), abre por
 duplo clique no Chrome ou Edge. Cabeçalho (visão, dia do ciclo, dados até) · aviso de vendedores sem check-in · seletor do dia de
 rota e filtro por supervisor · cards **No dia · Semana (do mês, S1–S4) · Mês** · bloco **Sell-in do mês** (faturado × orçado × meta por pesos das semanas × carteira) · tabela/gráfico por vendedor (por supervisor nas visões de gerente e

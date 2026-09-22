@@ -68,6 +68,9 @@ de N1, N2 e N3 por `estrutura.visoes()`. Nada é inferido: login vazio fica vazi
 Chave com a rota (D-17): `COD_VENDEDOR` (coluna opcional `Cód. vendedor` da planilha de rota) = `N4_COD`; sem a coluna,
 `EXECUTIVO` = `N4_NOME`, que só serve enquanto o nome for único (duas posições `[VAGO]` tornam a ligação ambígua).
 
+Coluna opcional `ENCERRADA EM` (D-45) → `ENCERRADA_EM` (data) e `ATIVA` (sem data = ativa): posição de vendedor que saiu; não precisa
+de login nem de lojas na rota corrente e continua no de-para para os meses fechados.
+
 ## Sell-in do BI (`sellin.py`) — D-42
 
 Três exports do BI em `bases/SellIn/` (nomes em `fontes.sellin.arquivos`). Rodapé (`Total`, linha em branco, `Filtros aplicados…`)
@@ -81,3 +84,5 @@ dado nem rodapé, chave repetida ou arquivo truncado abortam. `COD_CLIENTE` sem 
 | `faturado` | 1 pedido × data de faturamento (`PEDIDO`, `DATA_FATURAMENTO`) | `ANO_MES`, `PEDIDO`, `DATA_PEDIDO`, `DATA_FATURAMENTO`, `COD_CLIENTE`, `RECEITA` (negativos entram como vêm) |
 
 Valores em Receita Líquida (não é o `Valor total do pedido` do Mercanet). O pedido do BI não casa com o do Mercanet: ligação só por cliente.
+D-45: a raiz de `bases/SellIn/` é o mês corrente; cada subpasta `AAAA-MM` é um mês fechado (os mesmos 3 arquivos, filtrados naquele mês);
+`carregar()` devolve `{mês: {cliente, carteira, faturado}}`.
