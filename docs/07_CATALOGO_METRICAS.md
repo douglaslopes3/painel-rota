@@ -46,6 +46,21 @@ Pedido válido: situação diferente de **Cancelado e Bloqueado** (D-33). Efeito
 As tabelas abaixo são o retrato do aceite da Fase 2, com as regras do protótipo 2 (Bloqueado, fim de semana e feriado contando). Com as
 regras atuais, `ferramentas/reconciliar_prototipo2.py` passa a apontar diferenças — deliberadas, por D-32 e D-33.
 
+## Sell-in (D-44, 22/09/2026) — só lojas da rota, fonte BI (`fontes.sellin`)
+
+| Indicador | Cálculo | Onde |
+|---|---|---|
+| Faturado | Σ `RECEITA` do arquivo faturado, por data de faturamento no período (devoluções negativas entram) | mês, semana, tabela, loja |
+| % do orçado | faturado do mês ÷ Σ `ORCADO` das lojas da rota do vendedor | mês (sem cor) |
+| Meta | orçado × peso da semana (`metas_sellin.pesos`); até a data = orçado × Σ pesos até a semana do dia, semana em andamento inteira | mês, semana |
+| % da meta | faturado ÷ meta; cores por `painel.faixas_meta_sellin` (100 / 80) | mês, semana, tabela, gráfico |
+| Carteira | Σ `CARTEIRA` dos pedidos em aberto na data do export (só no dia mais recente do painel) | mês |
+| % do orçado com carteira | (faturado + carteira) ÷ orçado | mês, tabela |
+| Lojas faturadas | lojas com faturado líquido > 0 no mês ÷ lojas da rota | mês |
+
+A loja é do vendedor da ROTA (não do N4 do BI — iguais em 100% em set/26). Semana = semana do mês (`calendario.semanas_do_mes`); `LY` não entra.
+Conferências: faturado dos cards = Σ faturado da lista de lojas; lojas do sell-in = lojas da visão; supervisores somam gerente e head.
+
 ## Reconciliação com o protótipo 2 (aceite da Fase 2)
 
 `python ferramentas/reconciliar_prototipo2.py` refaz a conta do JavaScript do protótipo sobre os dados embutidos nele e

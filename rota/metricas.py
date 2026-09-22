@@ -135,3 +135,27 @@ def diario_vendedor(L: pd.DataFrame, fv: pd.DataFrame, fp: pd.DataFrame) -> pd.D
         partes.append(k)
     out = pd.concat(partes, ignore_index=True)
     return out.merge(jornada_dia(fv), on=["DATA", "COD_VENDEDOR"], how="left")
+
+
+SELLIN_COLS = ["LOJAS_SI", "ORCADO_SI", "META_SI", "FATURADO_SI", "CARTEIRA_SI", "LOJAS_FATURADAS_SI"]
+
+
+def sellin(L: pd.DataFrame, si: dict | None, dias, meta_pct: float, com_carteira: bool, por: str = "COD_VENDEDOR") -> pd.DataFrame:
+    """D-44 · Sell-in do BI, SÓ das lojas da rota (a loja é do vendedor da rota), num período (`dias`):
+    orçado do mês, meta do período (= orçado × `meta_pct`/100), faturado no período (data de faturamento, com as devoluções
+    como o BI traz), carteira em aberto HOJE (só quando `com_carteira`) e lojas com faturado líquido > 0 no período."""
+    donos = L[["COD_CLIENTE", por]].drop_duplicates("COD_CLIENTE")
+    base = donos.groupby(por).size().rename("LOJAS_SI").to_frame()
+    if si is None:
+        return base.assign(**{c: 0.0 for c in SELLIN_COLS[1:]}).rename_axis(por).reset_index()
+    dias = pd.to_datetime(list(dias))
+    cli = si["cliente"][["COD_CLIENTE", "ORCADO"]].merge(donos, on="COD_CLIENTE")             # a loja é do vendedor da ROTA
+    fat = si["faturado"].loc[si["faturado"]["DATA_FATURAMENTO"].isin(dias), ["COD_CLIENTE", "RECEITA"]].merge(donos, on="COD_CLIENTE")
+    por_loja = fat.groupby([por, "COD_CLIENTE"])["RECEITA"].sum()
+    out = base.join(cli.groupby(por)["ORCADO"].sum().rename("ORCADO_SI"))
+    out["META_SI"] = out["ORCADO_SI"] * float(meta_pct) / 100
+    out = out.join(fat.groupby(por)["RECEITA"].sum().rename("FATURADO_SI"))
+    out = out.join(si["carteira"][["COD_CLIENTE", "CARTEIRA"]].merge(donos, on="COD_CLIENTE").groupby(por)["CARTEIRA"].sum().rename("CARTEIRA_SI") if com_carteira
+                   else pd.Series(dtype=float, name="CARTEIRA_SI"))
+    out = out.join((por_loja > 0).groupby(level=0).sum().rename("LOJAS_FATURADAS_SI"))
+    return out.fillna(0.0)[SELLIN_COLS].rename_axis(por).reset_index()

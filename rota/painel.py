@@ -17,11 +17,13 @@ from __future__ import annotations
 import pandas as pd
 
 from . import metricas
+from .transform import calendario
 from .utils.config import CFG
 
 COLS = ["ROTEIRO", "VISITADAS_NO_DIA", "FORA_DO_ROTEIRO", "VISITADAS_ATE_A_DATA", "COM_PEDIDO", "VISITA_E_PEDIDO", "SEM_CONTATO",
-        "VALOR_PEDIDOS", "TEL_ROTEIRO", "TEL_COM_PEDIDO", "TEL_VALOR_PEDIDOS", "VISITAS_COM_PAR", "MINUTOS_SOMA"]      # D-35: valor no painel; quantidade fora
-_DECIMAIS = {"VALOR_PEDIDOS", "TEL_VALOR_PEDIDOS", "MINUTOS_SOMA"}
+        "VALOR_PEDIDOS", "TEL_ROTEIRO", "TEL_COM_PEDIDO", "TEL_VALOR_PEDIDOS", "VISITAS_COM_PAR", "MINUTOS_SOMA",      # D-35: valor no painel; quantidade fora
+        *metricas.SELLIN_COLS]                                                                                        # D-44: sell-in do BI, lojas da rota
+_DECIMAIS = {"VALOR_PEDIDOS", "TEL_VALOR_PEDIDOS", "MINUTOS_SOMA", "ORCADO_SI", "META_SI", "FATURADO_SI", "CARTEIRA_SI"}
 _SOMAVEIS = [c for c in COLS if c not in _DECIMAIS]
 _MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
 
@@ -34,9 +36,17 @@ def _hhmm(ts) -> str | None:
     return None if pd.isna(ts) else f"{ts:%H:%M}"
 
 
-def preparar(m: dict[str, pd.DataFrame], lojas: pd.DataFrame, ate: pd.Timestamp) -> dict:
+def _pesos_do_dia(pesos: dict | None, semana) -> tuple[float, float]:
+    """(peso da semana do dia, soma dos pesos até ela, inclusive — a semana em andamento conta inteira, D-44)."""
+    if not pesos or pd.isna(semana):
+        return 0.0, 0.0
+    nomes = [str(f["nome"]) for f in calendario.faixas()]
+    return pesos[semana], sum(pesos[n] for n in nomes[:nomes.index(semana) + 1])
+
+
+def preparar(m: dict[str, pd.DataFrame], lojas: pd.DataFrame, ate: pd.Timestamp, si: dict | None = None) -> dict:
     """Tudo o que não depende da visão: dias de rota do mês, indicadores por vendedor × dia × escopo, jornada e, por loja,
-    as visitas e os pedidos do mês."""
+    as visitas, os pedidos e o faturado (sell-in) do mês."""
     fv, fp, cal = m["FATO_VISITA"], m["FATO_PEDIDO"], m["DIM_CALENDARIO"]
     mes = ate.strftime("%Y-%m")
     L = lojas[lojas["ANO_MES"] == mes]
@@ -45,17 +55,32 @@ def preparar(m: dict[str, pd.DataFrame], lojas: pd.DataFrame, ate: pd.Timestamp)
     dias_rota = c_mes[c_mes["DIA_DE_ROTA"]].reset_index(drop=True)
     ini_mes = c_mes["DATA"].min()
 
+    pesos = calendario.pesos(mes) if si is not None else None
     agg = {"dia": [], "sem": [], "mes": []}
-    for d, ini_sem in zip(dias_rota["DATA"], dias_rota["SEMANA_INICIO"]):
-        for e, dias in {"dia": [d], "sem": pd.date_range(max(ini_sem, ini_mes), d), "mes": pd.date_range(ini_mes, d)}.items():
-            k = metricas.kpis(L, fv, fp, dias, por="COD_VENDEDOR").merge(metricas.jornada(fv, dias), on="COD_VENDEDOR", how="outer")
+    for d, ini_sem, sem in zip(dias_rota["DATA"], dias_rota["SEMANA_INICIO"], dias_rota["SEMANA_NOME"]):
+        p_sem, p_acum = _pesos_do_dia(pesos, sem)
+        escopos = {"dia": ([d], 0.0, False), "sem": (pd.date_range(max(ini_sem, ini_mes), d), p_sem, False),
+                   "mes": (pd.date_range(ini_mes, d), p_acum, True)}                     # carteira = a de hoje: só no mês
+        for e, (dias, meta_pct, cart) in escopos.items():
+            k = (metricas.kpis(L, fv, fp, dias, por="COD_VENDEDOR").merge(metricas.jornada(fv, dias), on="COD_VENDEDOR", how="outer")
+                 .merge(metricas.sellin(L, si, dias, meta_pct, cart), on="COD_VENDEDOR", how="outer"))
             agg[e].append(k.set_index("COD_VENDEDOR")[COLS].fillna(0))
 
     vis = {c: [[int(r.DATA.day), None if pd.isna(r.MINUTOS_EM_LOJA) else round(float(r.MINUTOS_EM_LOJA), 1), int(r.N_CHECKINS)] for r in g.sort_values("DATA").itertuples()]
            for c, g in fv[fv["NA_ROTA"] & fv["CONTA_COMO_VISITA"]].groupby("COD_CLIENTE")}
     ped = fp[fp["NA_ROTA"] & fp["VALIDO"]].groupby(["COD_CLIENTE", "DATA_EMISSAO"]).agg(V=("VALOR", "sum"), N=("PEDIDO", "size")).reset_index()
     ped = {c: [[int(r.DATA_EMISSAO.day), round(float(r.V), 2), int(r.N)] for r in g.itertuples()] for c, g in ped.groupby("COD_CLIENTE")}
+    fat, si_meta = {}, None
+    if si is not None:
+        f = si["faturado"]
+        f = f[(f["DATA_FATURAMENTO"].dt.strftime("%Y-%m") == mes) & f["COD_CLIENTE"].isin(set(L["COD_CLIENTE"]))]
+        f = f.groupby(["COD_CLIENTE", "DATA_FATURAMENTO"])["RECEITA"].sum().reset_index()
+        fat = {c: [[int(r.DATA_FATURAMENTO.day), round(float(r.RECEITA), 2)] for r in g.itertuples()] for c, g in f.groupby("COD_CLIENTE")}
+        ult = si["faturado"]["DATA_FATURAMENTO"].max()
+        si_meta = {"ate": f"{ult:%d/%m/%Y}", "pesos": pesos, "semanas": [str(x["nome"]) for x in calendario.faixas()] if pesos else [],
+                   "faixas": CFG["painel"]["faixas_meta_sellin"]}
     return {"ate": ate, "mes": mes, "L": L, "dias_rota": dias_rota, "agg": agg, "jornada_dia": metricas.jornada_dia(fv), "vis": vis, "ped": ped,
+            "fat": fat, "sellin": si_meta, "pesos": pesos,
             "checkins_ate": fv["DATA"].max() if len(fv) else pd.NaT, "pedidos_ate": fp["DATA_EMISSAO"].max() if len(fp) else pd.NaT}
 
 
@@ -83,7 +108,7 @@ def montar(P: dict, dv: pd.DataFrame, visao: dict, atualizado_em: str) -> dict:
                 h[i_vend[r.COD_VENDEDOR]] = [_hhmm(r.PRIMEIRA_ENTRADA), _hhmm(r.ULTIMA_SAIDA)]
         horarios.append(h)
     lj = [[r.COD_CLIENTE, None if pd.isna(r.NOME_CLIENTE) else r.NOME_CLIENTE.title(), ("" if pd.isna(r.CIDADE) else r.CIDADE).title(), i_vend[r.COD_VENDEDOR],
-           i_dia[r.DATA_ROTA], int(bool(r.CONTROLA_VISITA)), P["vis"].get(r.COD_CLIENTE, []), P["ped"].get(r.COD_CLIENTE, [])]
+           i_dia[r.DATA_ROTA], int(bool(r.CONTROLA_VISITA)), P["vis"].get(r.COD_CLIENTE, []), P["ped"].get(r.COD_CLIENTE, []), P["fat"].get(r.COD_CLIENTE, [])]
           for r in L.sort_values(["DATA_ROTA", "COD_VENDEDOR", "NOME_CLIENTE"]).itertuples(index=False)]
 
     ci, pe = P["checkins_ate"], P["pedidos_ate"]
@@ -92,14 +117,18 @@ def montar(P: dict, dv: pd.DataFrame, visao: dict, atualizado_em: str) -> dict:
                  "dados_ate": f"{ate:%Y-%m-%d}", "checkins_ate": None if pd.isna(ci) else f"{ci:%d/%m/%Y}", "pedidos_ate": None if pd.isna(pe) else f"{pe:%d/%m/%Y}",
                  "atualizado_em": atualizado_em, "criterio_pedido": CFG["regras"]["pedido"]["criterio"],
                  "faixas": CFG["painel"]["faixas"], "rotulo_valor": CFG["painel"]["rotulo_valor"],
-                 "situacoes_excluidas": list(CFG["regras"]["pedido"]["situacoes_excluidas"]),
+                 "situacoes_excluidas": list(CFG["regras"]["pedido"]["situacoes_excluidas"]), "sellin": P["sellin"],
                  "dias_que_nao_contam": [{"sabado": "sábado", "terca": "terça"}.get(x, x) for x in (CFG["regras"]["visita"].get("dias_que_nao_contam") or [])]},
         "dias": [{"d": f"{r.DATA:%Y-%m-%d}", "dm": int(r.DATA.day), "lab": f"{r.DATA:%d/%m}", "dow": r.DIA_SEMANA, "n": int(r.N_DIA_CICLO),
-                  "futuro": bool(r.DATA > ate)} for r in P["dias_rota"].itertuples(index=False)],
+                  "futuro": bool(r.DATA > ate), "sem": None if pd.isna(r.SEMANA_NOME) else str(r.SEMANA_NOME),
+                  "sem_ini": f"{max(r.SEMANA_INICIO, r.DATA.replace(day=1)):%d/%m}", "sem_fim": f"{r.SEMANA_FIM:%d/%m}",
+                  "peso_sem": _pesos_do_dia(P["pesos"], r.SEMANA_NOME)[0], "peso_acum": _pesos_do_dia(P["pesos"], r.SEMANA_NOME)[1]}
+                 for r in P["dias_rota"].itertuples(index=False)],
         "sups": [{"cod": r.N3_COD, "nome": r.N3_NOME.title()} for r in sups.itertuples(index=False)],
         "vend": [{"cod": r.N4_COD, "nome": r.N4_NOME.title(), "sup": i_sup[r.N3_COD], "app": bool(r.USA_APP), "cart": int(r.CLIENTES)} for r in vend.itertuples(index=False)],
         "cols": COLS, "agg": agg, "horarios": horarios,
-        "lojas_cols": ["cod", "nome", "cidade", "vend", "dia", "pres", "vis[dia_do_mes, min, n_checkins]", "ped[dia_do_mes, valor, n_pedidos]"], "lojas": lj,
+        "lojas_cols": ["cod", "nome", "cidade", "vend", "dia", "pres", "vis[dia_do_mes, min, n_checkins]", "ped[dia_do_mes, valor, n_pedidos]",
+                       "fat[dia_do_mes, receita_liquida]"], "lojas": lj,
     }
 
 
@@ -126,6 +155,13 @@ def validar(J: dict, P: dict, dv: pd.DataFrame, visao: dict) -> None:
             soma = sum(v[C[c]] for v in J["agg"]["dia"][i])
             if soma != n:
                 raise PainelInvalido(f"'{rot}', {d['lab']}: {c} dos cards ({soma}) diferente da lista de lojas ({n}).")
+        if J["meta"]["sellin"]:                                                   # D-44: faturado do mes nos cards = soma do faturado das lojas
+            cards = sum(v[C["FATURADO_SI"]] for v in J["agg"]["mes"][i])
+            lista = sum(f[1] for l in J["lojas"] for f in l[8] if f[0] <= d["dm"])
+            if abs(cards - lista) > 0.01 * len(J["lojas"]) + 0.05:              # a lista leva centavos arredondados por loja x dia
+                raise PainelInvalido(f"'{rot}', {d['lab']}: faturado do mes nos cards ({cards:,.2f}) diferente da lista de lojas ({lista:,.2f}).")
+    if sum(v[C["LOJAS_SI"]] for v in J["agg"]["mes"][0]) != len(J["lojas"]):
+        raise PainelInvalido(f"'{rot}': lojas do sell-in diferentes das lojas da visao.")
 
 
 def totais(J: dict) -> dict[str, int]:
@@ -133,7 +169,9 @@ def totais(J: dict) -> dict[str, int]:
     C = {c: i for i, c in enumerate(J["cols"])}
     passados = [i for i, d in enumerate(J["dias"]) if not d["futuro"]]
     ult = passados[-1] if passados else 0
-    return {c: sum(v[C[c]] for v in J["agg"]["mes"][ult]) for c in _SOMAVEIS} | {"LOJAS": len(J["lojas"]), "VENDEDORES": len(J["vend"])}
+    return ({c: sum(v[C[c]] for v in J["agg"]["mes"][ult]) for c in _SOMAVEIS}
+            | {c: round(sum(v[C[c]] for v in J["agg"]["mes"][ult]), 2) for c in _DECIMAIS if c.endswith("_SI")}
+            | {"LOJAS": len(J["lojas"]), "VENDEDORES": len(J["vend"])})
 
 
 def conferir_niveis(gerados: dict[str, dict], visoes: list[dict]) -> list[str]:
@@ -150,6 +188,6 @@ def conferir_niveis(gerados: dict[str, dict], visoes: list[dict]) -> list[str]:
             continue
         for c, total in gerados[v["ROTULO"]].items():
             soma = sum(n3_tot[s][c] for s in v["N3_CODS"])
-            if soma != total:
+            if abs(soma - total) > 0.05:
                 erros.append(f"{v['ROTULO']}: {c} = {total}, mas a soma dos supervisores da {soma}")
     return erros

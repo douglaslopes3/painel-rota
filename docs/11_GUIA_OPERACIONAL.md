@@ -10,6 +10,7 @@ O que está marcado **A PREENCHER** depende de informação que só o Douglas te
    - consulta de pedidos do canal Atacado → salvar como `bases/Pedidos/Pedidos.csv`
    - sell-in no BI (D-42), os 3 exports em sequência, com o mesmo filtro, salvos em `bases/SellIn/` com os nomes de sempre:
      `Projeto Rota.xlsx`, `Projeto Rota Carteira.xlsx` e `Proejto Rota Faturado.xlsx` (sem eles o painel sai, com aviso)
+     (D-44: alimentam o bloco "Sell-in do mês", o card da semana e as colunas Faturado / % meta / % c/ carteira)
    - **A PREENCHER:** caminho de menu de cada consulta e os filtros exatos (período, canal, usuários). Atenção à P-03: conferir
      se a consulta de check-ins tem filtro de usuário/equipe que deixa vendedores de fora.
 2. **Substituir, nunca somar.** O arquivo novo entra no lugar do antigo, com o mesmo nome. Se quiser guardar o antigo, mova para
@@ -58,6 +59,8 @@ no fim; o md5 é conferido depois; nada é apagado na pasta do usuário (os pain
 |---|---|
 | Vendedor, supervisor ou login | editar `bases/Estrutura/DePara_Estrutura_Rota.xlsx` (1 linha por posição N4). Problema no de-para ABORTA (D-39) |
 | Uma posição ficou vaga | nome `[VAGO]` no de-para e na rota, e o código N4 em `fontes.estrutura.posicoes_sem_login_aceitas` (a 121 foi preenchida em 22/09, D-43) |
+| **Os pesos das semanas do sell-in** (S1 30 · S2 30 · S3 20 · S4 20, a confirmar com o time) | editar `metas_sellin.pesos` no config (somam 100), rodar `python run_rota.py`; o rodapé do painel mostra os pesos em uso. Mês com pesos próprios: `metas_sellin.pesos_por_mes`. Faixas das semanas: `calendario.semanas_do_mes` |
+| Voltar a semana para "segunda até o dia" (D-02) | `calendario.semana: segunda` — o sell-in fica sem meta semanal |
 | Uma regra de negócio | editar a lista no config (`regras.*`), rodar os testes, registrar a decisão em `docs/10_DECISOES.md` |
 | Vendedor novo no Projeto Rota | incluir o nome dele no filtro `Nome Vendedor Novo (N4)` dos 3 exports do BI, além do de-para |
 | Nome de loja errado | corrigir em `Clientes_Rota.xlsx` |

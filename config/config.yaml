@@ -178,7 +178,22 @@ calendario:
   # Dia útil = segunda a sexta fora desta lista. Serve ao rótulo dos dias e à contagem "dia X de N"; o planejado vem SEMPRE das
   # datas da rota, não daqui. Parâmetro declarado (o protótipo 2 também trata 07/09/2026 como não útil) — manter atualizado.
   feriados: ["2026-09-07"]
-  semana_inicio: segunda            # D-02: semana = da segunda-feira até o dia selecionado
+  # D-44 (22/09/2026): o card "Semana" e a meta semanal do sell-in usam a MESMA semana.
+  #   faixa_do_mes = as faixas de dias de `semanas_do_mes` (S1 = dias 1 a 7 ...), sempre as mesmas em todo mês
+  #   segunda      = da segunda-feira até o dia selecionado (regra original da D-02; sem meta semanal de sell-in)
+  semana: faixa_do_mes
+  semanas_do_mes:                   # faixas contínuas a partir do dia 1; a última vai até 31 (cobre qualquer mês)
+    - {nome: S1, de: 1, ate: 7}
+    - {nome: S2, de: 8, ate: 14}
+    - {nome: S3, de: 15, ate: 21}
+    - {nome: S4, de: 22, ate: 31}
+
+metas_sellin:                       # D-44 (22/09/2026) · meta do sell-in = orçado do mês (lojas da rota) repartido pelas semanas
+  # PESOS EM DISCUSSÃO COM O TIME: para mudar, editar os números abaixo e rodar `python run_rota.py` de novo (nada no código).
+  # Um peso por semana de `calendario.semanas_do_mes`, em %, somando 100 — senão o pipeline ABORTA.
+  # Meta da semana = orçado × peso da semana. Meta até a data = orçado × soma dos pesos até a semana do dia, contada inteira.
+  pesos: {S1: 30, S2: 30, S3: 20, S4: 20}
+  pesos_por_mes: {}                 # exceção de um mês, ex.: {"2026-12": {S1: 40, S2: 30, S3: 20, S4: 10}}
 
 regras:                             # D-02: regras do protótipo 2 (conferidas em 100% dos casos contra os dados embutidos nele)
   visita:
@@ -212,6 +227,9 @@ painel:
   faixas:                           # cores dos percentuais: >= verde, >= ambar, abaixo vermelho (protótipo 2: 90/60)
     verde: 90
     ambar: 60
+  faixas_meta_sellin:               # D-44: cores do "% da meta até a data" do sell-in (>= verde, >= ambar, abaixo vermelho)
+    verde: 100
+    ambar: 80
   rotulo_valor: "Valor dos pedidos"   # D-35 (18/09/2026): o painel mostra o valor bruto = `Valor total do pedido` dos pedidos válidos; a quantidade solicitada saiu
 
 publicacao:                         # D-39 · etapa 6. Destino = <destino>/<rótulo da visão>/<painel.arquivo> (D-05)

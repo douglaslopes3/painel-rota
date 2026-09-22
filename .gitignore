@@ -27,3 +27,6 @@ Thumbs.db
 desktop.ini
 ~$*
 *.tmp
+
+# Ferramentas locais da IA (caminho absoluto da maquina)
+.claude/

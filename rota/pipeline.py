@@ -21,7 +21,7 @@ from datetime import datetime
 from . import manifesto, metricas, painel, publicar, qualidade, render
 from .extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal, sellin
 from .load import parquet
-from .transform import modelo
+from .transform import calendario, modelo
 from .utils import log as L
 from .utils.config import CFG, PASTA_LOGS, RAIZ, preparar_pastas
 
@@ -29,6 +29,10 @@ from .utils.config import CFG, PASTA_LOGS, RAIZ, preparar_pastas
 def _verificar() -> dict:
     L.etapa_inicio("0 · VERIFICAR")
     L.log(f"projeto: {CFG['projeto']['nome']}  |  raiz: {RAIZ}")
+    calendario.conferir_config()                   # D-44: semana e pesos do sell-in mal declarados abortam aqui
+    if calendario.modo_semana() == "faixa_do_mes":
+        L.log("semana do mes " + " · ".join(f"{f['nome']} {f['de']}-{f['ate']}" for f in calendario.faixas())
+              + " | pesos do sell-in " + " · ".join(f"{k} {v:g}%" for k, v in (CFG["metas_sellin"]["pesos"] or {}).items()))
     for f in manifesto.FONTES:
         arqs = comum.arquivos(f)
         if not arqs:
@@ -129,7 +133,7 @@ def _ingerir(forcar: bool) -> dict:
             L.log(f"sell-in: vendedor(es) do BI fora do de-para {cruz['vendedores_bi_fora_do_depara']} — ficam so no relatorio de qualidade", "aviso")
     L.etapa_fim("ok", chaves=chaves, problemas_depara=len(problemas))
     return {"chaves": chaves, "problemas_depara": problemas, "sellin": {k: v for k, v in (cruz or {}).items() if not k.startswith("_")},
-            "_sellin": cruz, "_dados": (rota, ci, pd_, hier, cli)}
+            "_sellin": cruz, "_si": si, "_dados": (rota, ci, pd_, hier, cli)}
 
 
 def _modelar(rota, ci, pd_, hier, cli=None) -> dict:
@@ -182,7 +186,7 @@ def _calcular(m: dict) -> dict:
     return {"LOJA_MES": lojas, "DIARIO_VENDEDOR": diario, "_ate": ate, "_total": total.to_dict(), "_aderencia": ad.to_dict()}
 
 
-def _painel(m: dict, calc: dict, hier) -> dict:
+def _painel(m: dict, calc: dict, hier, si=None) -> dict:
     """Um HTML por visão da hierarquia, em pasta LOCAL (D-28: nada é publicado até a validação final). A falha de uma visão
     não derruba as outras: o arquivo dela não sai, o erro fica no log e a execução termina com exit code 1."""
     L.etapa_inicio("4-5 · RENDERIZAR E VALIDAR OS PAINEIS")
@@ -196,7 +200,9 @@ def _painel(m: dict, calc: dict, hier) -> dict:
     niveis = CFG["painel"].get("niveis_gerados") or ["N1", "N2", "N3"]
     todas = estrutura.visoes(hier).to_dict("records")
     visoes = [v for v in todas if v["NIVEL"] in niveis]
-    P = painel.preparar(m, calc["LOJA_MES"], calc["_ate"])
+    P = painel.preparar(m, calc["LOJA_MES"], calc["_ate"], si)
+    if P["sellin"]:
+        L.log(f"sell-in no painel: faturado ate {P['sellin']['ate']} | pesos {P['sellin']['pesos'] or 'sem meta semanal (semana de segunda)'}", "ok")
     dv = m["DIM_VENDEDOR"]
     gerados, totais, falhas, nomes = {}, {}, [], set()
     for v in visoes:
@@ -235,9 +241,10 @@ def executar(forcar: bool = False, modo_publicacao: str = "plano") -> int:
     info = _ingerir(forcar)
     rota, ci, pd_, hier, cli = info.pop("_dados")
     cruz_sellin = info.pop("_sellin")
+    si = info.pop("_si")
     m = _modelar(rota, ci, pd_, hier, cli)
     calc = _calcular(m)
-    gerados = _painel(m, calc, hier)
+    gerados = _painel(m, calc, hier, si)
 
     L.etapa_inicio("GRAVAR (camada curada + qualidade)")
     for nome, df in {**m, "LOJA_MES": calc["LOJA_MES"], "DIARIO_VENDEDOR": calc["DIARIO_VENDEDOR"]}.items():

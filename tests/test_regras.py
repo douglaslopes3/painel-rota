@@ -23,6 +23,7 @@ for _f in (sys.stdout, sys.stderr):
 
 from rota import metricas, painel  # noqa: E402
 from rota.transform import calendario, modelo, visitas  # noqa: E402
+from rota.utils.config import CFG  # noqa: E402
 
 T = pd.Timestamp
 
@@ -233,7 +234,72 @@ def test_paineis_dos_supervisores_somam_o_do_head():
 def test_calendario_ciclo_vem_das_datas_da_rota():
     cal = calendario.gerar(M["FATO_ROTA_PLANEJADA"])
     assert len(cal) == 31 and cal.DIA_DE_ROTA.sum() == 3 and cal[cal.DATA == T("2026-10-09")].N_DIA_CICLO.iloc[0] == 3
-    assert cal[cal.DATA == T("2026-10-07")].SEMANA_INICIO.iloc[0] == T("2026-10-05") and not cal[cal.DATA == T("2026-10-10")].DIA_UTIL.iloc[0]
+    assert not cal[cal.DATA == T("2026-10-10")].DIA_UTIL.iloc[0]
+
+
+def _com_cfg(secao: str, chave: str, valor, fn):
+    antes = CFG[secao][chave]
+    CFG[secao][chave] = valor
+    try:
+        return fn()
+    finally:
+        CFG[secao][chave] = antes
+
+
+def test_semana_do_mes_ou_de_segunda_conforme_o_config():
+    """D-44: faixa_do_mes = S1 dias 1-7, S2 8-14 ... (a S4 vai ate o fim do mes); segunda = regra original da D-02."""
+    cal = _com_cfg("calendario", "semana", "faixa_do_mes", lambda: calendario.gerar(M["FATO_ROTA_PLANEJADA"]))
+    d = cal.set_index("DATA")
+    assert (d.loc[T("2026-10-07"), "SEMANA_NOME"], d.loc[T("2026-10-07"), "SEMANA_INICIO"]) == ("S1", T("2026-10-01"))
+    assert (d.loc[T("2026-10-08"), "SEMANA_NOME"], d.loc[T("2026-10-31"), "SEMANA_NOME"], d.loc[T("2026-10-31"), "SEMANA_INICIO"]) == ("S2", "S4", T("2026-10-22"))
+    cal = _com_cfg("calendario", "semana", "segunda", lambda: calendario.gerar(M["FATO_ROTA_PLANEJADA"]))
+    d = cal.set_index("DATA")
+    assert d.loc[T("2026-10-07"), "SEMANA_INICIO"] == T("2026-10-05") and pd.isna(d.loc[T("2026-10-07"), "SEMANA_NOME"])
+
+
+def _aborta(fn) -> bool:
+    try:
+        fn()
+    except SystemExit:
+        return True
+    return False
+
+
+def test_pesos_do_sellin_mal_declarados_abortam():
+    """D-44: os pesos vivem no config e sao conferidos — soma diferente de 100, semana sem peso ou faixa com buraco abortam."""
+    calendario.conferir_config()                                               # o config do projeto passa
+    assert _aborta(lambda: _com_cfg("metas_sellin", "pesos", {"S1": 30, "S2": 30, "S3": 20, "S4": 10}, calendario.conferir_config))
+    assert _aborta(lambda: _com_cfg("metas_sellin", "pesos", {"S1": 50, "S2": 50}, calendario.conferir_config))
+    buraco = [{"nome": "S1", "de": 1, "ate": 7}, {"nome": "S2", "de": 9, "ate": 14}, {"nome": "S3", "de": 15, "ate": 21}, {"nome": "S4", "de": 22, "ate": 31}]
+    assert _aborta(lambda: _com_cfg("calendario", "semanas_do_mes", buraco, calendario.conferir_config))
+    assert _com_cfg("metas_sellin", "pesos_por_mes", {"2026-10": {"S1": 40, "S2": 30, "S3": 20, "S4": 10}},
+                    lambda: calendario.pesos("2026-10")) == {"S1": 40.0, "S2": 30.0, "S3": 20.0, "S4": 10.0}
+
+
+# sell-in sintetico: orcado das lojas 1..5 (a 99 esta fora da rota e nao entra), faturado com uma devolucao, carteira de hoje
+SI = {"cliente": pd.DataFrame({"COD_CLIENTE": ["1", "2", "3", "4", "5", "99"], "ORCADO": [100.0, 100.0, 0.0, 200.0, 100.0, 1000.0]}),
+      "faturado": pd.DataFrame({"COD_CLIENTE": ["1", "1", "4", "99"], "RECEITA": [50.0, -10.0, 30.0, 500.0],
+                                "DATA_FATURAMENTO": pd.to_datetime(["2026-10-05", "2026-10-08", "2026-10-06", "2026-10-05"])}),
+      "carteira": pd.DataFrame({"COD_CLIENTE": ["2", "5", "99"], "CARTEIRA": [40.0, 20.0, 700.0]})}
+
+
+def test_sellin_so_lojas_da_rota_com_meta_pelos_pesos_das_semanas():
+    """D-44, pesos S1 30 · S2 30 · S3 20 · S4 20: em 06/10 (S1) a meta do mes e 30% do orcado; em 09/10 (S2), 60% (semana em andamento
+    conta inteira). A semana e a do mes (S2 = 08 a 14/10). Devolucao entra como o BI traz; loja fora da rota nao entra."""
+    PS = _com_cfg("calendario", "semana", "faixa_do_mes", lambda: _com_cfg(
+        "metas_sellin", "pesos", {"S1": 30, "S2": 30, "S3": 20, "S4": 20}, lambda: painel.preparar(M, L, T("2026-10-07"), SI)))
+    C = {c: i for i, c in enumerate(painel.COLS)}
+    m6, m9, s9 = (PS["agg"][e][i].loc["101"] for e, i in (("mes", 1), ("mes", 2), ("sem", 2)))
+    assert (m6["LOJAS_SI"], m6["ORCADO_SI"], m6["META_SI"], m6["FATURADO_SI"], m6["CARTEIRA_SI"], m6["LOJAS_FATURADAS_SI"]) == (4, 400, 120, 80, 40, 2)
+    assert (m9["META_SI"], m9["FATURADO_SI"]) == (240, 70) and (s9["META_SI"], s9["FATURADO_SI"], s9["CARTEIRA_SI"], s9["LOJAS_FATURADAS_SI"]) == (120, -10, 0, 0)
+    assert PS["agg"]["mes"][1].loc["136"]["CARTEIRA_SI"] == 20 and "FATURADO_SI" in C
+    Js = {v["ROTULO"]: painel.montar(PS, DV, v, "x") for v in (V_SUP, V_TEL, V_HEAD)}
+    for v in (V_SUP, V_TEL, V_HEAD):
+        painel.validar(Js[v["ROTULO"]], PS, DV, v)                            # faturado dos cards = faturado da lista de lojas
+    tot = {r: painel.totais(j) for r, j in Js.items()}
+    assert painel.conferir_niveis(tot, [V_SUP, V_TEL, V_HEAD]) == [] and tot[V_HEAD["ROTULO"]]["ORCADO_SI"] == 500
+    J = Js[V_HEAD["ROTULO"]]
+    assert J["meta"]["sellin"]["pesos"]["S1"] == 30 and [(d["sem"], d["peso_acum"]) for d in J["dias"]] == [("S1", 30), ("S1", 30), ("S2", 60)]
 
 
 if __name__ == "__main__":

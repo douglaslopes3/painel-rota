@@ -15,7 +15,7 @@ cd "C:\Users\dldsouza\OneDrive - Dori Alimentos S.A\Documentos\Painéis - Alavan
 python run_rota.py            # verificar -> ingerir -> modelar -> calcular -> painel (pasta local) -> gravar curated + qualidade   (~5 s)
 python run_rota.py --forcar   # relê todas as bases ignorando o cache
 python tests/test_leitores.py # 27 testes dos leitores (não precisa de pytest)
-python tests/test_regras.py   # 19 testes das regras de visita, pedido e indicadores
+python tests/test_regras.py   # 22 testes das regras de visita, pedido, indicadores e sell-in
 python run_rota.py --ensaio       # ensaia a publicacao em pasta local (nao toca em Paineis Comerciais)
 python run_rota.py --publicar     # publica — so com publicacao.liberada: true no config (D-28)
 python tests/test_publicar.py     # trava, tudo ou nada e copia conferida (D-39)
@@ -32,7 +32,7 @@ Qualquer falha termina com `PIPELINE ABORTADO`, exit code 1, dizendo o arquivo, 
 | `Mercanet/` | `*.csv` | timeline de check-in/check-out | extração acumulada do mês: **substituir** o arquivo do mês corrente todo dia |
 | `Pedidos/` | `*.csv` | consulta de pedidos (canal Atacado inteiro), com rodapé de totais | idem |
 | `Estrutura/` | `DePara_Estrutura_Rota.xlsx`, aba `Hierarquia` | hierarquia N1–N4 do Projeto Rota (formato da `Hierarquia_Consolidada` do Gerencial) + login do Mercanet; as visões saem de N1, N2 e N3 | mantido pelo Douglas / Atacado; as 22 posições com login desde 22/09 (121 = Marcelo Silva, D-43) |
-| `SellIn/` | `Projeto Rota.xlsx`, `Projeto Rota Carteira.xlsx`, `Proejto Rota Faturado.xlsx` | sell-in do BI: cliente × mês (orçado, carteira, receita, LY), pedidos em carteira e faturado — complemento aos pedidos (D-42); lido e conferido, ainda fora dos indicadores | extrair os 3 juntos todo dia e substituir |
+| `SellIn/` | `Projeto Rota.xlsx`, `Projeto Rota Carteira.xlsx`, `Proejto Rota Faturado.xlsx` | sell-in do BI: cliente × mês (orçado, carteira, receita, LY), pedidos em carteira e faturado — complemento aos pedidos (D-42); alimenta o bloco de sell-in e a meta por semana (D-44, pesos em `metas_sellin`) | extrair os 3 juntos todo dia e substituir |
 | `Estrutura/` | `Clientes_Rota.xlsx` | nome de TODAS as lojas da rota (código + nome); vence o nome do Mercanet (D-38) | mantido pelo Douglas; atualizar quando entrar loja nova na rota |
 
 Regras de operação:
@@ -64,7 +64,7 @@ run_rota.py · requirements.txt
 Um por visão da hierarquia (`painel.niveis_gerados`), em `%LOCALAPPDATA%\Dori\ROTA\painel\Painel_Rota_<nível>_<rótulo>.html` (fora do
 OneDrive), 37 a 99 KB, autocontido, só com os dados da própria visão (recorte físico, conferido a cada execução), abre por
 duplo clique no Chrome ou Edge. Cabeçalho (visão, dia do ciclo, dados até) · aviso de vendedores sem check-in · seletor do dia de
-rota e filtro por supervisor · cards **No dia · Semana · Mês** · tabela/gráfico por vendedor (por supervisor nas visões de gerente e
+rota e filtro por supervisor · cards **No dia · Semana (do mês, S1–S4) · Mês** · bloco **Sell-in do mês** (faturado × orçado × meta por pesos das semanas × carteira) · tabela/gráfico por vendedor (por supervisor nas visões de gerente e
 head) · lista de lojas do roteiro do dia com status. Depois de editar o template, basta rodar o pipeline de novo.
 
 ## Documentação
