@@ -19,7 +19,7 @@ import time
 from datetime import datetime
 
 from . import manifesto, metricas, painel, publicar, qualidade, render
-from .extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal
+from .extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal, sellin
 from .load import parquet
 from .transform import modelo
 from .utils import log as L
@@ -114,8 +114,22 @@ def _ingerir(forcar: bool) -> dict:
         if obrig:
             L.abortar(msg)
         L.log(msg, "aviso")
+    si = sellin.carregar(forcar)                   # D-42: sell-in do BI — só lido e conferido; nenhum indicador usa ainda (P-16)
+    cruz = None
+    if si is not None:
+        avisos, difs = sellin.conferir(si)
+        for a in avisos:
+            L.log("sell-in: " + a, "aviso")
+        cruz = sellin.cruzar(si, rota, hier)
+        cruz["_diferencas"] = difs
+        L.log(f"sell-in: {cruz['clientes_bi']:,} clientes no BI | {cruz['lojas_rota_no_bi']:,} de {cruz['lojas_rota']:,} lojas da rota no BI | "
+              f"{cruz['clientes_bi_fora_da_rota']:,} clientes do BI fora da rota (receita {cruz['receita_fora_da_rota']:,.2f}) | "
+              f"vendedor do BI diferente do da rota em {cruz['vendedor_diferente']:,} loja(s)", "ok")
+        if cruz["vendedores_bi_fora_do_depara"]:
+            L.log(f"sell-in: vendedor(es) do BI fora do de-para {cruz['vendedores_bi_fora_do_depara']} — ficam so no relatorio de qualidade", "aviso")
     L.etapa_fim("ok", chaves=chaves, problemas_depara=len(problemas))
-    return {"chaves": chaves, "problemas_depara": problemas, "_dados": (rota, ci, pd_, hier, cli)}
+    return {"chaves": chaves, "problemas_depara": problemas, "sellin": {k: v for k, v in (cruz or {}).items() if not k.startswith("_")},
+            "_sellin": cruz, "_dados": (rota, ci, pd_, hier, cli)}
 
 
 def _modelar(rota, ci, pd_, hier, cli=None) -> dict:
@@ -220,6 +234,7 @@ def executar(forcar: bool = False, modo_publicacao: str = "plano") -> int:
     dif = _verificar()
     info = _ingerir(forcar)
     rota, ci, pd_, hier, cli = info.pop("_dados")
+    cruz_sellin = info.pop("_sellin")
     m = _modelar(rota, ci, pd_, hier, cli)
     calc = _calcular(m)
     gerados = _painel(m, calc, hier)
@@ -231,7 +246,7 @@ def executar(forcar: bool = False, modo_publicacao: str = "plano") -> int:
     if hier is not None:
         vis = estrutura.visoes(hier)
         parquet.salvar(vis.assign(N3_CODS=vis["N3_CODS"].map(";".join), EXECUCAO_ID=L.EXECUCAO_ID), "DIM_VISAO")
-    info["qualidade"] = qualidade.gerar(m, calc["LOJA_MES"], L.contagens(), info["problemas_depara"])
+    info["qualidade"] = qualidade.gerar(m, calc["LOJA_MES"], L.contagens(), info["problemas_depara"], cruz_sellin)
     info["dados_ate"] = str(calc["_ate"].date())
     info["paineis"], info["falhas_paineis"] = gerados["paineis"], gerados["falhas"]
     info["total_mes"] = {k: (round(float(v), 2) if v == v else None) for k, v in calc["_total"].items() if k != "GRUPO"}

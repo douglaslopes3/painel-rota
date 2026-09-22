@@ -49,3 +49,17 @@ def conferir_meses(fonte: str, por_arquivo: dict[str, list[str]]) -> None:
                         "  Substitua o arquivo do mes, nunca adicione: mova a versao antiga para uma subpasta "
                         "(ex.: _versoes/) e rode de novo.")
             dono[m] = arq
+
+
+def datas(s: pd.Series, formatos) -> pd.Series:
+    """Converte texto em data tentando cada formato declarado, em ordem (D-42: o Mercanet já mandou com e sem segundos).
+    Aceita um formato (texto) ou uma lista. O que não casa com nenhum fica NaT — quem chama decide se aborta."""
+    formatos = [formatos] if isinstance(formatos, str) else list(formatos)
+    s = s.astype("string").str.strip().replace("", pd.NA)
+    out = pd.Series(pd.NaT, index=s.index, dtype="datetime64[ns]")
+    for f in formatos:
+        falta = out.isna() & s.notna()
+        if not falta.any():
+            break
+        out[falta] = pd.to_datetime(s[falta], format=f, errors="coerce")
+    return out

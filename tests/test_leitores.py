@@ -22,7 +22,7 @@ for _f in (sys.stdout, sys.stderr):
     except (AttributeError, OSError):
         pass
 
-from rota.extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal  # noqa: E402
+from rota.extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal, sellin  # noqa: E402
 from rota.utils import texto as T  # noqa: E402
 from rota.utils.config import RAIZ  # noqa: E402
 
@@ -75,6 +75,14 @@ def test_checkins_tira_repetida_e_login_de_teste_contando():
 def test_checkins_data_invalida_aborta():
     ruim = "ABC;Fulano;2026-09-03 10:00;1000001;LOJA A;RUA X;SAO PAULO;SP;CHECKIN;Checkin;-24;-47"
     assert aborta(checkins.ler_arquivo, _csv("ci_data.csv", [CAB_CI, ruim]))
+
+
+def test_checkins_aceita_data_sem_segundos_e_mistura():
+    """D-42: a extração de 22/09/2026 veio sem segundos; os dois formatos convivem no mesmo arquivo."""
+    l1 = "ABC;Fulano;15/09/2026 13:00;1000001;LOJA A;RUA X;SAO PAULO;SP;CHECKIN;Checkin;-24;-47"
+    l2 = "ABC;Fulano;15/09/2026 13:20:30;1000001;LOJA A;RUA X;SAO PAULO;SP;CHECKOUT;Checkout;-24;-47"
+    df, _ = checkins.ler_arquivo(_csv("ci_min.csv", [CAB_CI, l1, l2]))
+    assert df["DATA_HORA"].tolist() == [pd.Timestamp("2026-09-15 13:00"), pd.Timestamp("2026-09-15 13:20:30")]
 
 
 def test_checkins_coluna_ausente_aborta():
@@ -207,6 +215,52 @@ def test_rota_com_codigo_do_vendedor():
     assert x["com_codigo_vendedor"] and df["COD_VENDEDOR"].tolist() == ["101", "101"]
     d.loc[1, "Cód. vendedor"] = None; d.to_excel(a, sheet_name="Base de Clientes", index=False)
     assert aborta(rota_mensal.ler_arquivo, a)                                # coluna presente tem de vir completa
+
+
+# ------------------------------------------------------------------ sell-in do BI (D-42)
+_FILTRO = "Filtros aplicados:\nAno mês é 2026/09"
+_CAB_SI_CART = ["Ano mês", "Número pedido", "Data Pedido", "Cód. cliente", "Receita Líquida Carteira Total"]
+_CAB_SI_CLI = ["Ano mês", "Cód. cliente", "Cliente", "Bandeira cliente", "Cidade", "Nome Head Vendas (N1)", "Nome Gerente Vendas (N2)",
+               "Nome Executivo Vendas (N3)", "Nome Vendedor Novo (N4)", "Receita Líquida Orçamento", "Receita Líquida Carteira Total",
+               "Receita Líquida", "Receita Líquida LY"]
+
+
+def _xlsx(nome: str, cab: list[str], linhas: list[list]) -> Path:
+    a = TMP / nome
+    pd.DataFrame(linhas, columns=cab).to_excel(a, index=False)
+    return a
+
+
+def _cart(nome: str, linhas: list[list], total: float | None) -> Path:
+    rod = ([["Total", None, None, None, total]] if total is not None else []) + [[None] * 5, [_FILTRO, None, None, None, None]]
+    return _xlsx(nome, _CAB_SI_CART, linhas + rod)
+
+
+def test_sellin_rodape_vira_gabarito_e_sai_dos_dados():
+    L = [["2026/09", "0111000001", pd.Timestamp("2026-09-10"), "0001004628", 100.5], ["2026/09", "0111000002", pd.Timestamp("2026-08-20"), "0001004629", -20.0]]
+    df, x = sellin.ler_arquivo(_cart("si_ok.xlsx", L, 80.5), "carteira")
+    assert (len(df), x["rodape"], x["gabarito"]["CARTEIRA"]) == (2, 3, 80.5)
+    assert df["COD_CLIENTE"].tolist() == ["1004628", "1004629"] and df["ANO_MES"].tolist() == ["2026-09"] * 2
+    assert x["filtros"].startswith("Filtros aplicados")
+
+
+def test_sellin_truncado_linha_estranha_e_pedido_repetido_abortam():
+    L = [["2026/09", "0111000001", pd.Timestamp("2026-09-10"), "0001004628", 100.5]]
+    assert aborta(sellin.ler_arquivo, _cart("si_trunc.xlsx", L, 999.0), "carteira")
+    assert aborta(sellin.ler_arquivo, _cart("si_estr.xlsx", L + [["Subtotal", None, None, None, 1.0]], 100.5), "carteira")
+    assert aborta(sellin.ler_arquivo, _cart("si_dup.xlsx", L + L, 201.0), "carteira")
+
+
+def test_sellin_codigo_do_vendedor_sai_do_n4_e_conferencia_aponta_diferenca():
+    cli = [["2026/09", "0001004628", "LOJA A", "A", "BH", "ADEMIR", "G (22000)", "S (2220)", "RODRIGO MATOS (128)", 10.0, 100.5, 50.0, None],
+           ["2026/09", "0001004629", "LOJA B", "B", "BH", "ADEMIR", "G (22000)", "S (2220)", "PATRICIA ALVES (135)", 10.0, None, None, None]]
+    rod = [["Total", None, None, None, None, None, None, None, None, 20.0, 100.5, 50.0, None]]
+    c, _ = sellin.ler_arquivo(_xlsx("si_cli.xlsx", _CAB_SI_CLI, cli + rod), "cliente")
+    assert c["COD_VENDEDOR"].tolist() == ["128", "135"]
+    cart, _ = sellin.ler_arquivo(_cart("si_c2.xlsx", [["2026/09", "0111000001", pd.Timestamp("2026-09-10"), "0001004628", 100.5]], 100.5), "carteira")
+    fat = pd.DataFrame({"COD_CLIENTE": ["1004628", "1004629"], "RECEITA": [50.0, 7.0]})
+    avisos, lista = sellin.conferir({"cliente": c, "carteira": cart, "faturado": fat})
+    assert len(avisos) == 1 and lista["COD_CLIENTE"].tolist() == ["1004629"]      # carteira fecha; faturado do 1004629 nao esta no cliente
 
 
 # ------------------------------------------------------------------ cadastro de nomes (D-38)

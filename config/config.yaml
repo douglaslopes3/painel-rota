@@ -45,7 +45,9 @@ fontes:
     padroes_aceitos: ["*.csv"]
     separador: ";"
     encoding: cp1252
-    formato_data: "%d/%m/%Y %H:%M:%S"
+    # D-42 (22/09/2026): a extração de 22/09 veio SEM segundos. Lista = formatos aceitos, tentados em ordem; data que não casa com
+    # nenhum aborta. Para exigir um formato só, deixar um item.
+    formato_data: ["%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M"]
     colunas:
       "USUÁRIO": LOGIN
       "NOME USUÁRIO": NOME_USUARIO
@@ -118,6 +120,59 @@ fontes:
     colunas:
       "Cód. cliente": COD_CLIENTE
       "Nome Cliente": NOME_CLIENTE
+
+  sellin:                           # D-42 (22/09/2026) · P-16 · exports do BI (sell-in), COMPLEMENTO aos pedidos do Mercanet (não substitui)
+    pasta: bases/SellIn             # 3 arquivos de nome fixo (os nomes do export do BI), substituídos todo dia, extraídos em sequência
+    obrigatorio: false              # false = arquivo ausente só avisa; true = aborta
+    # Rodapé do export: linha "Total" (vira o GABARITO: a soma das linhas tem de bater), linha em branco e "Filtros aplicados..."
+    # (descartada, com o texto guardado no staging-json). Linha que não é dado nem rodapé ABORTA.
+    rotulo_total: Total
+    prefixo_filtros: "Filtros aplicados"
+    arquivos:
+      cliente:                      # 1 linha = 1 cliente no mês, com a hierarquia N1–N4 do BI
+        arquivo: Projeto Rota.xlsx
+        chave: [COD_CLIENTE]
+        colunas:
+          "Ano mês": ANO_MES
+          "Cód. cliente": COD_CLIENTE
+          "Cliente": NOME_CLIENTE
+          "Bandeira cliente": BANDEIRA
+          "Cidade": CIDADE
+          "Nome Head Vendas (N1)": N1_BI
+          "Nome Gerente Vendas (N2)": N2_BI
+          "Nome Executivo Vendas (N3)": N3_BI
+          "Nome Vendedor Novo (N4)": N4_BI            # "RODRIGO MATOS (128)": o código entre parênteses vira COD_VENDEDOR
+          "Receita Líquida Orçamento": ORCADO
+          "Receita Líquida Carteira Total": CARTEIRA
+          "Receita Líquida": RECEITA
+          "Receita Líquida LY": RECEITA_LY
+        valores: [ORCADO, CARTEIRA, RECEITA, RECEITA_LY]
+      carteira:                     # 1 linha = 1 pedido em aberto (pode ser de mês anterior)
+        arquivo: Projeto Rota Carteira.xlsx
+        chave: [PEDIDO]
+        colunas:
+          "Ano mês": ANO_MES
+          "Número pedido": PEDIDO
+          "Data Pedido": DATA_PEDIDO
+          "Cód. cliente": COD_CLIENTE
+          "Receita Líquida Carteira Total": CARTEIRA
+        valores: [CARTEIRA]
+      faturado:                     # 1 linha = 1 pedido × data de faturamento (faturamento parcial = várias linhas); negativos entram como vêm
+        arquivo: Proejto Rota Faturado.xlsx      # nome como exportado (com a grafia "Proejto")
+        chave: [PEDIDO, DATA_FATURAMENTO]
+        colunas:
+          "Ano mês": ANO_MES
+          "Numero Pedido": PEDIDO
+          "Data Pedido": DATA_PEDIDO
+          "Data Faturamento": DATA_FATURAMENTO
+          "Cód. cliente": COD_CLIENTE
+          "Receita Líquida": RECEITA
+        valores: [RECEITA]
+    # Conferências entre os 3 arquivos, por cliente (diferença vira AVISO + lista em data/rota/quality/, não aborta:
+    # arquivos tirados em momentos diferentes divergem no que faturou entre um export e outro)
+    conferir:
+      - {detalhe: carteira, coluna: CARTEIRA, contra: CARTEIRA}
+      - {detalhe: faturado, coluna: RECEITA, contra: RECEITA}
 
 calendario:
   # Dia útil = segunda a sexta fora desta lista. Serve ao rótulo dos dias e à contagem "dia X de N"; o planejado vem SEMPRE das

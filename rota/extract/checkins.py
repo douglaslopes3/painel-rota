@@ -40,12 +40,12 @@ def ler_arquivo(arq: Path) -> tuple[pd.DataFrame, dict]:
     df["CIDADE"] = texto(df["CIDADE"])
     df["UF"] = texto(df["UF"])
     df["EVENTO"] = texto(df["EVENTO"])
-    df["DATA_HORA"] = pd.to_datetime(df["DATA_HORA"].str.strip(), format=cfg["formato_data"], errors="coerce")
+    df["DATA_HORA"] = comum.datas(df["DATA_HORA"], cfg["formato_data"])
 
     ruins = df[df["DATA_HORA"].isna() | df["LOGIN"].isna() | df["COD_CLIENTE"].isna()]
     if len(ruins):
         abortar(f"{arq.name}: {len(ruins)} linha(s) com data do evento invalida ou sem usuario/cliente "
-                f"(linhas do arquivo: {[int(i) + 2 for i in ruins.index[:5]]}). Formato esperado: {cfg['formato_data']}.")
+                f"(linhas do arquivo: {[int(i) + 2 for i in ruins.index[:5]]}). Formato(s) aceito(s): {cfg['formato_data']}.")
     estranhos = sorted(set(df["EVENTO"].dropna()) - set(cfg["eventos_esperados"]))
     if estranhos:
         abortar(f"{arq.name}: evento(s) nao reconhecido(s) {estranhos}; esperados {cfg['eventos_esperados']}.")

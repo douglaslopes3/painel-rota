@@ -14,8 +14,8 @@ local, validados; **nada é publicado** até tudo estar sem pendências e valida
 cd "C:\Users\dldsouza\OneDrive - Dori Alimentos S.A\Documentos\Painéis - Alavancas\ROTA"
 python run_rota.py            # verificar -> ingerir -> modelar -> calcular -> painel (pasta local) -> gravar curated + qualidade   (~5 s)
 python run_rota.py --forcar   # relê todas as bases ignorando o cache
-python tests/test_leitores.py # 21 testes dos leitores (não precisa de pytest)
-python tests/test_regras.py   # 16 testes das regras de visita, pedido e indicadores
+python tests/test_leitores.py # 27 testes dos leitores (não precisa de pytest)
+python tests/test_regras.py   # 19 testes das regras de visita, pedido e indicadores
 python run_rota.py --ensaio       # ensaia a publicacao em pasta local (nao toca em Paineis Comerciais)
 python run_rota.py --publicar     # publica — so com publicacao.liberada: true no config (D-28)
 python tests/test_publicar.py     # trava, tudo ou nada e copia conferida (D-39)
@@ -32,6 +32,7 @@ Qualquer falha termina com `PIPELINE ABORTADO`, exit code 1, dizendo o arquivo, 
 | `Mercanet/` | `*.csv` | timeline de check-in/check-out | extração acumulada do mês: **substituir** o arquivo do mês corrente todo dia |
 | `Pedidos/` | `*.csv` | consulta de pedidos (canal Atacado inteiro), com rodapé de totais | idem |
 | `Estrutura/` | `DePara_Estrutura_Rota.xlsx`, aba `Hierarquia` | hierarquia N1–N4 do Projeto Rota (formato da `Hierarquia_Consolidada` do Gerencial) + login do Mercanet; as visões saem de N1, N2 e N3 | mantido pelo Douglas / Atacado; 21 das 22 posições com login, a 121 `[VAGO]` sem (D-30) |
+| `SellIn/` | `Projeto Rota.xlsx`, `Projeto Rota Carteira.xlsx`, `Proejto Rota Faturado.xlsx` | sell-in do BI: cliente × mês (orçado, carteira, receita, LY), pedidos em carteira e faturado — complemento aos pedidos (D-42); lido e conferido, ainda fora dos indicadores | extrair os 3 juntos todo dia e substituir |
 | `Estrutura/` | `Clientes_Rota.xlsx` | nome de TODAS as lojas da rota (código + nome); vence o nome do Mercanet (D-38) | mantido pelo Douglas; atualizar quando entrar loja nova na rota |
 
 Regras de operação:

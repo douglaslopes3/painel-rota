@@ -67,3 +67,17 @@ de N1, N2 e N3 por `estrutura.visoes()`. Nada é inferido: login vazio fica vazi
 
 Chave com a rota (D-17): `COD_VENDEDOR` (coluna opcional `Cód. vendedor` da planilha de rota) = `N4_COD`; sem a coluna,
 `EXECUTIVO` = `N4_NOME`, que só serve enquanto o nome for único (duas posições `[VAGO]` tornam a ligação ambígua).
+
+## Sell-in do BI (`sellin.py`) — D-42
+
+Três exports do BI em `bases/SellIn/` (nomes em `fontes.sellin.arquivos`). Rodapé (`Total`, linha em branco, `Filtros aplicados…`)
+sai dos dados: o `Total` é o gabarito (soma das linhas tem de bater) e o texto dos filtros fica no JSON do staging. Linha que não é
+dado nem rodapé, chave repetida ou arquivo truncado abortam. `COD_CLIENTE` sem zeros à esquerda; `ANO_MES` no formato `2026-09`.
+
+| Arquivo | Grão (chave) | Colunas no staging |
+|---|---|---|
+| `cliente` | 1 cliente no mês (`COD_CLIENTE`) | `ANO_MES`, `COD_CLIENTE`, `NOME_CLIENTE`, `BANDEIRA`, `CIDADE`, `N1_BI`…`N4_BI` (texto do BI, ex.: `RODRIGO MATOS (128)`), `COD_VENDEDOR` (o número entre parênteses do N4), `ORCADO`, `CARTEIRA`, `RECEITA`, `RECEITA_LY` |
+| `carteira` | 1 pedido em aberto (`PEDIDO`) | `ANO_MES`, `PEDIDO`, `DATA_PEDIDO`, `COD_CLIENTE`, `CARTEIRA` |
+| `faturado` | 1 pedido × data de faturamento (`PEDIDO`, `DATA_FATURAMENTO`) | `ANO_MES`, `PEDIDO`, `DATA_PEDIDO`, `DATA_FATURAMENTO`, `COD_CLIENTE`, `RECEITA` (negativos entram como vêm) |
+
+Valores em Receita Líquida (não é o `Valor total do pedido` do Mercanet). O pedido do BI não casa com o do Mercanet: ligação só por cliente.

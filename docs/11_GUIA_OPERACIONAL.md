@@ -8,6 +8,8 @@ O que está marcado **A PREENCHER** depende de informação que só o Douglas te
 1. **Extrair do Mercanet**, sempre o mês corrente ACUMULADO (do dia 1 até hoje), nunca só o dia:
    - timeline de check-in/check-out → salvar como `bases/Mercanet/Mercanet.csv`
    - consulta de pedidos do canal Atacado → salvar como `bases/Pedidos/Pedidos.csv`
+   - sell-in no BI (D-42), os 3 exports em sequência, com o mesmo filtro, salvos em `bases/SellIn/` com os nomes de sempre:
+     `Projeto Rota.xlsx`, `Projeto Rota Carteira.xlsx` e `Proejto Rota Faturado.xlsx` (sem eles o painel sai, com aviso)
    - **A PREENCHER:** caminho de menu de cada consulta e os filtros exatos (período, canal, usuários). Atenção à P-03: conferir
      se a consulta de check-ins tem filtro de usuário/equipe que deixa vendedores de fora.
 2. **Substituir, nunca somar.** O arquivo novo entra no lugar do antigo, com o mesmo nome. Se quiser guardar o antigo, mova para
@@ -57,6 +59,7 @@ no fim; o md5 é conferido depois; nada é apagado na pasta do usuário (os pain
 | Vendedor, supervisor ou login | editar `bases/Estrutura/DePara_Estrutura_Rota.xlsx` (1 linha por posição N4). Problema no de-para ABORTA (D-39) |
 | A posição 121 · Litoral foi preenchida | pôr nome e login no de-para e tirar `"121"` de `fontes.estrutura.posicoes_sem_login_aceitas` |
 | Uma regra de negócio | editar a lista no config (`regras.*`), rodar os testes, registrar a decisão em `docs/10_DECISOES.md` |
+| Vendedor novo no Projeto Rota | incluir o nome dele no filtro `Nome Vendedor Novo (N4)` dos 3 exports do BI, além do de-para |
 | Nome de loja errado | corrigir em `Clientes_Rota.xlsx` |
 
 Testes (rodar depois de qualquer mudança de regra ou de código):

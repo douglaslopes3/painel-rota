@@ -20,7 +20,7 @@ def _csv(df: pd.DataFrame, nome: str) -> int:
     return len(df)
 
 
-def gerar(m: dict[str, pd.DataFrame], L: pd.DataFrame, contagens: dict, problemas_depara: list[str]) -> dict:
+def gerar(m: dict[str, pd.DataFrame], L: pd.DataFrame, contagens: dict, problemas_depara: list[str], sellin: dict | None = None) -> dict:
     q = CFG["qualidade"]
     fv, fp, dv, dc = m["FATO_VISITA"], m["FATO_PEDIDO"], m["DIM_VENDEDOR"], m["DIM_CLIENTE"]
     nome = dc.set_index("COD_CLIENTE")["NOME_CLIENTE"]
@@ -51,6 +51,11 @@ def gerar(m: dict[str, pd.DataFrame], L: pd.DataFrame, contagens: dict, problema
     fora_j = pr[pr["VALIDO"] & ~pr["NA_JANELA_DA_ROTA"]][["PEDIDO", "COD_CLIENTE", "NOME_CLIENTE", "DATA_EMISSAO", "DATA_ROTA", "SITUACAO", "VALOR", "COD_VENDEDOR_ROTA"]]
     _csv(fora_j, "pedidos_de_clientes_da_rota_fora_da_janela.csv")
 
+    if sellin:                                     # D-42: sell-in do BI, só conferido (nenhum indicador usa ainda)
+        n["sellin_fora_da_rota"] = _csv(sellin["_fora_da_rota"], "sellin_clientes_fora_da_rota.csv")
+        n["sellin_rota_sem_bi"] = _csv(sellin["_rota_sem_bi"], "sellin_lojas_da_rota_sem_sellin.csv")
+        n["sellin_vendedor_diferente"] = _csv(sellin["_vendedor_diferente"], "sellin_vendedor_diferente_da_rota.csv")
+        n["sellin_diferencas"] = _csv(sellin["_diferencas"], "sellin_diferencas_entre_arquivos.csv")
     mins = fv["MINUTOS_EM_LOJA"].dropna()
     linhas = [
         f"# Relatório de qualidade · execução {EXECUCAO_ID}", "",
@@ -75,6 +80,15 @@ def gerar(m: dict[str, pd.DataFrame], L: pd.DataFrame, contagens: dict, problema
         f"- Lojas na rota: {len(L):,} ({int(L['CONTROLA_VISITA'].sum()):,} com controle de visita, {int((~L['CONTROLA_VISITA']).sum()):,} só por pedido).",
         f"- Status no dia da rota: " + " · ".join(f"{v} **{int((L['STATUS'] == k).sum()):,}**" for k, v in {3: 'visita + pedido', 2: 'só visita', 1: 'só pedido', 0: 'sem contato'}.items()) + " (inclui lojas com rota ainda por vencer).",
     ]
+    if sellin:
+        linhas += [
+            "", "## 6. Sell-in (BI) — só conferido, fora dos indicadores (D-42)", "",
+            f"- Clientes no BI: {sellin['clientes_bi']:,}; lojas da rota no BI: **{sellin['lojas_rota_no_bi']:,} de {sellin['lojas_rota']:,}** → sem sell-in: `sellin_lojas_da_rota_sem_sellin.csv`.",
+            f"- Clientes do BI FORA da rota: **{sellin['clientes_bi_fora_da_rota']:,}** (receita R$ {sellin['receita_fora_da_rota']:,.2f}) → `sellin_clientes_fora_da_rota.csv`.",
+            f"- Vendedor do BI diferente do vendedor da rota: **{sellin['vendedor_diferente']:,}** loja(s) → `sellin_vendedor_diferente_da_rota.csv`.",
+            f"- Vendedores do BI fora do de-para: {sellin['vendedores_bi_fora_do_depara'] or 'nenhum'}.",
+            f"- Diferenças por cliente entre os 3 arquivos: **{n['sellin_diferencas']:,}** → `sellin_diferencas_entre_arquivos.csv`.",
+        ]
     (PASTA_QUALITY / "relatorio_qualidade.md").write_text("\n".join(linhas) + "\n", encoding="utf-8")
     log(f"relatorio de qualidade e {len(list(PASTA_QUALITY.glob('*.csv')))} listas de excecao -> {PASTA_QUALITY.name}/", "ok")
     return n
