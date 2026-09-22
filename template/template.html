@@ -245,8 +245,9 @@ function cards(escopo){var s=derivar(somar(escopo,DAY,vendDaVisao())),d=D.dias[D
   if(temSi()&&escopo==='sem'&&temMeta()&&d.sem)
     h.push(hero('Faturado na semana · '+esc(d.sem),brl(s.FATURADO_SI),s.META_SI?n1(s.P_META)+'% da meta da semana ('+brl(s.META_SI)+' = '+n1(d.peso_sem).replace(',0','')+'% do orçado) · sell-in BI':'sem orçado nas lojas · sell-in BI',heroClsMeta(s.P_META),s.P_META));
   if(temSi()&&escopo==='mes'){var hoje=DAY===ultimoDia();
-    var detFat=(temMeta()&&d.sem&&s.META_SI?'<b>'+n1(s.P_META)+'% da meta até a '+esc(d.sem)+'</b> ('+brl(s.META_SI)+') · ':'')+(s.ORCADO_SI?n1(s.P_ORC)+'% do orçado ('+brl(s.ORCADO_SI)+')':'sem orçado')+' · <b>'+n0(s.LOJAS_FATURADAS_SI)+'</b> de '+n0(s.LOJAS_SI)+' lojas faturadas · sell-in BI';
-    h.push(hero('Faturado no mês',brl(s.FATURADO_SI),detFat,temMeta()&&d.sem?heroClsMeta(s.P_META):'neu',temMeta()&&d.sem?s.P_META:s.P_ORC));
+    h.push(hero('Faturado no mês',brl(s.FATURADO_SI),(s.ORCADO_SI?'meta do mês (orçado) '+brl(s.ORCADO_SI):'sem orçado nas lojas')+' · <b>'+n0(s.LOJAS_FATURADAS_SI)+'</b> de '+n0(s.LOJAS_SI)+' lojas faturadas · sell-in BI','neu'));
+    var ritmo=temMeta()&&d.sem&&s.META_SI?' · no ritmo dos pesos, até a '+esc(d.sem)+' deveria estar em '+n1(d.peso_acum).replace(',0','')+'%: <b>'+n1(s.P_META)+'%</b> do esperado':'';
+    h.push(hero('% realizado da meta do mês',s.ORCADO_SI?n1(s.P_ORC)+'%':'—',(s.ORCADO_SI?'faltam '+brl(Math.max(0,s.ORCADO_SI-s.FATURADO_SI))+' para a meta do mês':'sem orçado')+ritmo,temMeta()&&d.sem?heroClsMeta(s.P_META):'',s.P_ORC));
     h.push(hero('Carteira',hoje?brl(s.CARTEIRA_SI):'—',hoje?'pedidos em aberto em '+esc(D.meta.sellin.ate)+' · faturado + carteira = <b>'+n1(s.P_ORC_CART)+'%</b> do orçado':'a carteira é a da data do export: aparece só no dia mais recente','neu',hoje?s.P_ORC_CART:null));}
   return h.join('');}
 function renderCards(){var d=D.dias[DAY];
