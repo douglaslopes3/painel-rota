@@ -122,10 +122,6 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
   <div class="cards" id="cSem"></div>
   <div class="blockhead"><h3>Acumulado do mês</h3><span class="ln"></span><span class="tip" id="tipMes"></span></div>
   <div class="cards" id="cMes"></div>
-  <div id="blocoSi" style="display:none">
-  <div class="blockhead"><h3>Sell-in · lojas da rota</h3><span class="ln"></span><span class="tip" id="tipSi"></span></div>
-  <div class="cards" id="cSi"></div>
-  </div>
 
   <div class="blk">
     <div class="blkhead">
@@ -211,7 +207,7 @@ function renderTop(){var m=D.meta;
   var selo=document.getElementById('seloMes');if(!selo){selo=document.createElement('div');selo.id='seloMes';selo.className='banner';selo.style.cssText='background:#FFF4D6;border-color:#E6C46A';document.getElementById('semApp').before(selo);}
   selo.style.display=m.fechado?'':'none';
   selo.innerHTML=m.fechado?'<span style="font-size:20px">&#128274;</span><div><b>Mês fechado · '+esc(m.mes)+'</b> — números congelados no último dia do mês (dados até '+esc(m.dados_ate.split('-').reverse().join('/'))+', bases de '+esc(m.atualizado_em)+'). Escolha outro mês no seletor para ver o mês em andamento.</div>':'';
-  if(temSi()){document.getElementById('pSi').style.display='';document.getElementById('hSi').textContent=m.sellin.ate;document.getElementById('blocoSi').style.display='';}
+  if(temSi()){document.getElementById('pSi').style.display='';document.getElementById('hSi').textContent=m.sellin.ate;}
   var sem=D.vend.filter(function(v){return !v.app;});
   document.getElementById('semApp').innerHTML=sem.length?'<div class="banner"><span style="font-size:20px">&#9888;&#65039;</span><div><b>'+sem.length+' de '+D.vend.length+
     (D.vend.length===1?' vendedor':' vendedores')+' sem nenhum check-in no mês:</b> '+sem.map(function(v){return esc(v.nome);}).join(', ')+
@@ -237,32 +233,28 @@ function renderTop(){var m=D.meta;
 /* ---------- cards ---------- */
 function hero(lab,val,det,c,bar){return '<div class="hero'+(c?' '+c:'')+'"><div class="lab">'+lab+'</div><div class="val'+(String(val).indexOf('R$')===0?' brl':'')+'">'+val+'</div><div class="det">'+det+'</div>'+
   (bar===undefined||bar===null?'':'<div class="bar"><i style="width:'+Math.max(0,Math.min(100,bar))+'%"></i></div>')+'</div>';}
-function cards(escopo){var s=derivar(somar(escopo,DAY,vendDaVisao())),fut=D.dias[DAY].futuro,q=D.meta.rotulo_valor,h=[];
-  h.push(hero('Lojas no roteiro',n0(s.ROTEIRO),escopo==='dia'?'com visita presencial planejada no dia':'com data de rota no período','neu'));
-  h.push(hero('Visitadas no dia da rota',n0(s.VISITADAS_NO_DIA)+' <small>/ '+n0(s.ROTEIRO)+'</small>',fut?'aguardando dados do dia':
-    n1(s.P_VIS)+'% do roteiro · <b>'+n0(s.FORA_DO_ROTEIRO)+'</b> visitadas fora do dia · <b>'+n0(s.TOTAL_VISITADAS)+'</b> no total',heroCls(s.P_VIS),s.P_VIS));
-  if(escopo==='mes') h.push(hero('Aderência no mês',n1(s.P_ADE)+'%',n0(s.VISITADAS_ATE_A_DATA)+' de '+n0(s.ROTEIRO)+' lojas com roteiro vencido já foram visitadas no mês',heroCls(s.P_ADE),s.P_ADE));
-  else h.push(hero('Não atendidas no dia da rota',n0(s.NAO_ATENDIDAS),'<b>'+n0(s.VISITADAS_ATE_A_DATA)+'</b> das '+n0(s.ROTEIRO)+' já receberam visita no mês, em algum dia',s.NAO_ATENDIDAS?'red':'grn'));
-  h.push(hero('Com pedido no mês',n0(s.COM_PEDIDO)+' <small>/ '+n0(s.ROTEIRO)+'</small>',n1(s.P_POS)+'% de positivação · '+n0(s.VISITA_E_PEDIDO)+' com visita e pedido · '+n0(s.SEM_CONTATO)+' sem contato','',s.P_POS));
-  h.push(hero(esc(q),brl(s.VALOR_PEDIDOS),'valor bruto dos pedidos do mês dessas lojas','neu'));
-  h.push(hero('Tempo médio em loja',s.T_LOJA===null?'—':n0(s.T_LOJA)+' <small>min</small>',n0(s.VISITAS_COM_PAR)+' visitas com check-in e check-out no período','neu'));
-  if(s.TEL_ROTEIRO) h.push(hero('Telefone com pedido',n0(s.TEL_COM_PEDIDO)+' <small>/ '+n0(s.TEL_ROTEIRO)+'</small>',n1(s.P_TEL)+'% · '+brl(s.TEL_VALOR_PEDIDOS),'',s.P_TEL));
-  return h.join('');}
-function cardsSi(){var s=derivar(somar('mes',DAY,vendDaVisao())),d=D.dias[DAY],hoje=DAY===ultimoDia(),h=[];
-  h.push(hero('Faturado no mês',brl(s.FATURADO_SI),(s.ORCADO_SI?n1(s.P_ORC)+'% do orçado do mês ('+brl(s.ORCADO_SI)+')':'sem orçado nas lojas'),'neu',s.P_ORC));
-  if(temMeta()&&d.sem) h.push(hero('% da meta até a data',s.META_SI?n1(s.P_META)+'%':'—','meta até a '+esc(d.sem)+' = '+n1(d.peso_acum).replace(',0','')+'% do orçado = '+brl(s.META_SI),heroClsMeta(s.P_META),s.P_META));
-  if(temMeta()&&d.sem){var w=derivar(somar('sem',DAY,vendDaVisao()));
-    h.push(hero('Faturado na semana · '+esc(d.sem),brl(w.FATURADO_SI),w.META_SI?n1(w.P_META)+'% da meta da semana ('+brl(w.META_SI)+' = '+n1(d.peso_sem).replace(',0','')+'% do orçado) · '+d.sem_ini+' a '+d.lab:'sem orçado nas lojas',heroClsMeta(w.P_META),w.P_META));}
-  h.push(hero('Carteira',hoje?brl(s.CARTEIRA_SI):'—',hoje?'pedidos em aberto em '+esc(D.meta.sellin.ate)+' · com a carteira: <b>'+n1(s.P_ORC_CART)+'%</b> do orçado':'a carteira é a da data do export: aparece só no dia mais recente','neu',hoje?s.P_ORC_CART:null));
-  h.push(hero('Lojas faturadas',n0(s.LOJAS_FATURADAS_SI)+' <small>/ '+n0(s.LOJAS_SI)+'</small>',n1(s.P_LOJ_FAT)+'% das lojas da rota com faturamento no mês','',s.P_LOJ_FAT));
+/* cards por periodo (D-46): so o que decide — visitas, pedido tirado (Mercanet) e, na semana e no mes, o faturado (BI) ao lado.
+   Roteiro, nao atendidas, telefone e lojas faturadas viram detalhe; tempo em loja fica na tabela e no grafico. */
+function cards(escopo){var s=derivar(somar(escopo,DAY,vendDaVisao())),d=D.dias[DAY],fut=d.futuro,q=D.meta.rotulo_valor,h=[];
+  var detVis=fut?'aguardando dados do dia':n1(s.P_VIS)+'% das <b>'+n0(s.ROTEIRO)+'</b> lojas no roteiro · <b>'+n0(s.NAO_ATENDIDAS)+'</b> não atendidas no dia · <b>'+n0(s.FORA_DO_ROTEIRO)+'</b> visitadas fora do dia';
+  h.push(hero('Visitadas no dia da rota',n0(s.VISITADAS_NO_DIA)+' <small>/ '+n0(s.ROTEIRO)+'</small>',detVis,heroCls(s.P_VIS),s.P_VIS));
+  if(escopo==='mes') h.push(hero('Aderência no mês',n1(s.P_ADE)+'%',n0(s.VISITADAS_ATE_A_DATA)+' de '+n0(s.ROTEIRO)+' lojas com roteiro vencido já foram visitadas no mês, em algum dia',heroCls(s.P_ADE),s.P_ADE));
+  var detPed=n1(s.P_POS)+'% de positivação · '+n0(s.VISITA_E_PEDIDO)+' com visita e pedido · '+n0(s.SEM_CONTATO)+' sem contato'+(s.TEL_ROTEIRO?' · telefone <b>'+n0(s.TEL_COM_PEDIDO)+'</b> / '+n0(s.TEL_ROTEIRO)+' ('+brl(s.TEL_VALOR_PEDIDOS)+')':'');
+  h.push(hero('Com pedido no mês',n0(s.COM_PEDIDO)+' <small>/ '+n0(s.ROTEIRO)+'</small>',detPed,'',s.P_POS));
+  h.push(hero(esc(q),brl(s.VALOR_PEDIDOS),'pedidos do mês dessas lojas, no Mercanet'+(s.TEL_ROTEIRO?' (inclui telefone)':''),'neu'));
+  if(temSi()&&escopo==='sem'&&temMeta()&&d.sem)
+    h.push(hero('Faturado na semana · '+esc(d.sem),brl(s.FATURADO_SI),s.META_SI?n1(s.P_META)+'% da meta da semana ('+brl(s.META_SI)+' = '+n1(d.peso_sem).replace(',0','')+'% do orçado) · sell-in BI':'sem orçado nas lojas · sell-in BI',heroClsMeta(s.P_META),s.P_META));
+  if(temSi()&&escopo==='mes'){var hoje=DAY===ultimoDia();
+    var detFat=(temMeta()&&d.sem&&s.META_SI?'<b>'+n1(s.P_META)+'% da meta até a '+esc(d.sem)+'</b> ('+brl(s.META_SI)+') · ':'')+(s.ORCADO_SI?n1(s.P_ORC)+'% do orçado ('+brl(s.ORCADO_SI)+')':'sem orçado')+' · <b>'+n0(s.LOJAS_FATURADAS_SI)+'</b> de '+n0(s.LOJAS_SI)+' lojas faturadas · sell-in BI';
+    h.push(hero('Faturado no mês',brl(s.FATURADO_SI),detFat,temMeta()&&d.sem?heroClsMeta(s.P_META):'neu',temMeta()&&d.sem?s.P_META:s.P_ORC));
+    h.push(hero('Carteira',hoje?brl(s.CARTEIRA_SI):'—',hoje?'pedidos em aberto em '+esc(D.meta.sellin.ate)+' · faturado + carteira = <b>'+n1(s.P_ORC_CART)+'%</b> do orçado':'a carteira é a da data do export: aparece só no dia mais recente','neu',hoje?s.P_ORC_CART:null));}
   return h.join('');}
 function renderCards(){var d=D.dias[DAY];
   document.getElementById('hCiclo').textContent='Dia '+d.n+' de '+D.dias.length+' do ciclo de '+D.meta.mes+' · '+d.lab+' ('+d.dow+')'+(D.meta.fechado?' · MÊS FECHADO':'')+(d.futuro?' · ainda sem dados: mostrando o planejado':'');
   document.getElementById('tipDia').textContent='somente '+d.lab+' ('+d.dow+')';
   document.getElementById('tipSem').textContent=(d.sem?d.sem+' ('+d.sem_ini+' a '+d.sem_fim+') · ':'')+'de '+d.sem_ini+' até '+d.lab;
   document.getElementById('tipMes').textContent='de 01/'+d.d.slice(5,7)+' até '+d.lab;
-  document.getElementById('cDia').innerHTML=cards('dia');document.getElementById('cSem').innerHTML=cards('sem');document.getElementById('cMes').innerHTML=cards('mes');
-  if(temSi()){document.getElementById('tipSi').textContent='de 01/'+d.d.slice(5,7)+' até '+d.lab+' · BI';document.getElementById('cSi').innerHTML=cardsSi();}}
+  document.getElementById('cDia').innerHTML=cards('dia');document.getElementById('cSem').innerHTML=cards('sem');document.getElementById('cMes').innerHTML=cards('mes');}
 
 /* ---------- tabela e gráfico ---------- */
 var COLS=[{k:'nome',l:'',cls:'l'},{k:'ROTEIRO',l:'Roteiro'},{k:'VISITADAS_NO_DIA',l:'Visit. no dia'},{k:'P_VIS',l:'% no dia'},{k:'FORA_DO_ROTEIRO',l:'Fora do dia'},
