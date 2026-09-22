@@ -105,6 +105,10 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
 .glab{font-size:10.5px;color:var(--ink2);font-weight:700;margin-top:6px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .c1{background:#B9C4D8}.c2{background:var(--azul)}.c3{background:var(--ok)}.c4{background:var(--alt)}.c5{background:var(--amb)}
 @media(max-width:900px){.charts{grid-template-columns:1fr}}
+.pill.dl{border-color:var(--azul);color:var(--azul)}
+.st{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:800}
+.st.at{background:var(--okbg);color:var(--ok)}.st.ab{background:var(--redbg);color:var(--red)}.st.pv{background:#EFF2F7;color:var(--ink3)}
+#t-lojas td.l{white-space:normal;min-width:180px}
 @media print{.bar0,.toggles,.searchrow{display:none}.exbody{display:block}}
 </style></head><body>
 
@@ -171,6 +175,7 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
         <div class="toggles">
           <div class="tg"><span class="lab0">Período</span>
             <div class="pill" data-esc="dia">Dia</div><div class="pill" data-esc="sem">Semana</div><div class="pill" data-esc="mes">Mês</div></div>
+          <div class="pill dl" data-csv="equipe">&#11015; CSV</div>
         </div>
       </div>
       <div class="hint">Acumulado até o dia de rota selecionado. Clique numa coluna para ordenar. Visitas e horários vêm do check-in/check-out; pedidos, da consulta de pedidos do Mercanet; faturado, carteira e meta, do BI.</div>
@@ -179,7 +184,23 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
   </section>
 
   <section id="tab-lojas" style="display:none">
-    <div class="blk" style="margin-top:0"><div class="empty">Lojas do roteiro do mês: entra na próxima rodada (D-47, rodada B).</div></div>
+    <div class="blk" style="margin-top:0">
+      <div class="blkhead">
+        <h2>Lojas do roteiro do mês <span class="dim" id="lojMesTitulo" style="font-size:12px;font-weight:600"></span></h2>
+        <div class="toggles searchrow">
+          <input type="search" id="q2" placeholder="Buscar loja, cidade ou código" aria-label="Buscar loja">
+          <select id="selVend" aria-label="Vendedor"></select>
+          <div class="tg"><span class="lab0">Situação</span>
+            <div class="pill on" data-st="todas">Base do mês</div><div class="pill" data-st="venc">Rota vencida</div><div class="pill" data-st="aberto">Em aberto</div><div class="pill" data-st="atend">Atendidas</div><div class="pill" data-st="porvir">Por vir</div></div>
+          <div class="tg" id="canalBox2" style="display:none"><span class="lab0">Canal</span>
+            <div class="pill on" data-ca2="todos">Todos</div><div class="pill" data-ca2="pres">Presencial</div><div class="pill" data-ca2="tel">Telefone</div></div>
+          <div class="pill dl" data-csv="lojas">&#11015; CSV</div>
+        </div>
+      </div>
+      <div class="hint">Todas as lojas da rota do mês, com a situação até o dia de rota selecionado. <b>Rota vencida</b> = data de rota até o dia; <b>Atendida</b> = visitada no mês em qualquer dia (telefone: com pedido no mês); <b>Em aberto</b> = rota vencida sem visita; <b>Por vir</b> = rota depois do dia. A primeira linha resume a seleção. Clique numa coluna para ordenar.</div>
+      <div id="lojConfere" class="banner" style="display:none"></div>
+      <table id="t-lojas"><thead><tr id="lojHead"></tr></thead><tbody id="lojBody"></tbody></table>
+    </div>
   </section>
 
   <div class="foot" id="foot"></div>
@@ -187,11 +208,11 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
 
 <script>
 /*__PAINEL_DADOS__*/
-var PAY=null, D=null, C={}, MES=0, DAY=0, SUP=-1, ESC='dia', TAB='dia', SORT={k:'ROTEIRO',dir:-1}, FILT='todas', CANAL='todos', OPEN={}, ALLOPEN=false;
+var PAY=null, D=null, C={}, MES=0, DAY=0, SUP=-1, ESC='dia', TAB='dia', SORT={k:'ROTEIRO',dir:-1}, FILT='todas', CANAL='todos', OPEN={}, ALLOPEN=false, ST='todas', CANAL2='todos', VEND2=-1, SORT2={k:'sit',dir:1};
 /* D-45: um arquivo, varios meses. usarMes(k) monta D com o bloco do mes k + o que e comum a visao; o resto da tela le so D. */
 function usarMes(k){var M=PAY.meses[k];MES=k;
   D={meta:Object.assign({},PAY.meta,M.meta),cols:PAY.cols,lojas_cols:PAY.lojas_cols,dias:M.dias,sups:M.sups,vend:M.vend,agg:M.agg,horarios:M.horarios,lojas:M.lojas};
-  C={};D.cols.forEach(function(c,i){C[c]=i;});DAY=0;D.dias.forEach(function(d,i){if(!d.futuro)DAY=i;});SUP=-1;OPEN={};ALLOPEN=false;}
+  C={};D.cols.forEach(function(c,i){C[c]=i;});DAY=0;D.dias.forEach(function(d,i){if(!d.futuro)DAY=i;});SUP=-1;OPEN={};ALLOPEN=false;VEND2=-1;}
 function rotuloMes(M){return M.meta.mes+(M.meta.fechado?' · mês fechado':' · em andamento');}
 
 function n0(v){return Math.round(v).toLocaleString('pt-BR');}
@@ -380,12 +401,64 @@ function linhaLoja(l,st){var m=MK[st.s],det=[];
   return '<div class="store"><span class="mark '+m[0]+'" title="'+m[2]+'">'+m[1]+'</span><div><div class="nm">'+(l[1]?esc(l[1]):'Cód. '+l[0]+' <span class="dim" style="font-weight:500">— sem razão social nas bases</span>')+
     (l[5]?'':'<span class="tag tel">telefone</span>')+'</div><div class="sb">'+esc(l[2])+(l[1]?' · cód. '+l[0]:'')+'</div><div class="sb">'+det.join(' &nbsp;|&nbsp; ')+'</div></div></div>';}
 
+/* ---------- lojas do roteiro do mes (D-47, aba 3) ---------- */
+function lojaMes(l){var dm=D.dias[DAY].dm,d=D.dias[l[4]],venc=l[4]<=DAY,vis=l[6].filter(function(v){return v[0]<=dm;}),peds=l[7].filter(function(p){return p[0]<=dm;}),fat=(l[8]||[]).filter(function(f){return f[0]<=dm;});
+  var vp=peds.reduce(function(a,p){return a+p[1];},0),vf=fat.reduce(function(a,f){return a+f[1];},0);
+  var at=l[5]?vis.length>0:peds.length>0;
+  return {l:l,venc:venc,pres:!!l[5],vis:vis,peds:peds,vp:vp,vf:vf,at:at,sit:!venc?2:(at?0:1),sitLab:!venc?'Por vir':(at?'Atendida':'Em aberto'),
+    rota:d.lab,sem:d.sem||'',vend:D.vend[l[3]],sup:D.sups[D.vend[l[3]].sup]};}
+var LCOLS=[{k:'cod',l:'Código',f:function(x){return x.l[0];},cls:'l'},{k:'nome',l:'Loja',f:function(x){return x.l[1]||'';},cls:'l'},{k:'cid',l:'Cidade',f:function(x){return x.l[2];},cls:'l'},
+  {k:'vend',l:'Vendedor',f:function(x){return x.vend.nome;},cls:'l'},{k:'sup',l:'Supervisor',f:function(x){return x.sup.nome;},cls:'l',grupo:1},{k:'canal',l:'Canal',f:function(x){return x.pres?'Presencial':'Telefone';},tel:1},
+  {k:'rota',l:'Data da rota',f:function(x){return x.l[4];},fmt:function(x){return x.rota;}},{k:'sem',l:'Semana',f:function(x){return x.sem;}},{k:'sit',l:'Situação',f:function(x){return x.sit;},fmt:function(x){return '<span class="st '+['at','ab','pv'][x.sit]+'">'+x.sitLab+'</span>';}},
+  {k:'vis',l:'Dias de visita',f:function(x){return x.vis.length;},fmt:function(x){return x.vis.length?x.vis.map(function(v){return dd(v[0]);}).join(' '):'<span class="dim">—</span>';}},
+  {k:'vp',l:'Pedido no mês',f:function(x){return x.vp;},fmt:function(x){return x.peds.length?brl(x.vp):'<span class="dim">—</span>';}},
+  {k:'vf',l:'Faturado (BI)',f:function(x){return x.vf;},fmt:function(x){return x.l[8]&&x.l[8].length?brl(x.vf):'<span class="dim">—</span>';},si:1}];
+function lcolsAtivas(temTel){return LCOLS.filter(function(c){return (!c.grupo||D.sups.length>1)&&(!c.tel||temTel)&&(!c.si||temSi());});}
+function lojasDoMes(){var vis=vendDaVisao(),q=(document.getElementById('q2').value||'').trim().toLowerCase();
+  return D.lojas.filter(function(l){return vis.indexOf(l[3])>=0&&(VEND2<0||l[3]===VEND2);}).map(lojaMes).filter(function(x){
+    return (ST==='todas'||(ST==='venc'&&x.venc)||(ST==='aberto'&&x.sit===1)||(ST==='atend'&&x.sit===0)||(ST==='porvir'&&x.sit===2))&&
+      (CANAL2==='todos'||(CANAL2==='pres')===x.pres)&&(!q||((x.l[1]||'')+' '+x.l[2]+' '+x.l[0]).toLowerCase().indexOf(q)>=0);});}
+function renderLojasMes(){var d=D.dias[DAY],vis=vendDaVisao();
+  document.getElementById('lojMesTitulo').textContent='· situação até '+d.lab+' ('+d.dow+')';
+  var sel=document.getElementById('selVend');if(sel.options.length!==vis.length+1||sel.dataset.mes!==String(MES)){sel.dataset.mes=String(MES);
+    sel.innerHTML='<option value="-1">Todos os vendedores</option>'+vis.map(function(i){return '<option value="'+i+'">'+esc(D.vend[i].nome)+'</option>';}).join('');sel.value=String(VEND2);}
+  var temTel=D.lojas.some(function(l){return vis.indexOf(l[3])>=0&&!l[5];});document.getElementById('canalBox2').style.display=temTel?'':'none';
+  var rows=lojasDoMes(),cols=lcolsAtivas(temTel),cs=cols.find(function(c){return c.k===SORT2.k;})||cols[0];
+  rows.sort(function(a,b){var x=cs.f(a),y=cs.f(b);if(typeof x==='string'||typeof y==='string')return String(x||'').localeCompare(String(y||''),'pt-BR')*SORT2.dir;return (x-y)*SORT2.dir||String(a.l[1]||'').localeCompare(String(b.l[1]||''),'pt-BR');});
+  document.getElementById('lojHead').innerHTML=cols.map(function(c){return '<th class="'+(c.cls||'')+'" data-k2="'+c.k+'">'+c.l+' <span class="ar">'+(SORT2.k===c.k?(SORT2.dir===1?'&#9650;':'&#9660;'):'')+'</span></th>';}).join('');
+  var n=rows.length,venc=rows.filter(function(x){return x.venc;}).length,at=rows.filter(function(x){return x.sit===0;}).length,ab=rows.filter(function(x){return x.sit===1;}).length,
+    cp=rows.filter(function(x){return x.peds.length;}).length,vp=rows.reduce(function(a,x){return a+x.vp;},0),vf=rows.reduce(function(a,x){return a+x.vf;},0);
+  var tot='<tr class="tot"><td class="l" colspan="'+(cols.length-(temSi()?2:1))+'"><b>'+n0(n)+' lojas</b> na seleção · '+n0(venc)+' com rota vencida · <span class="pos">'+n0(at)+' atendidas</span> · <span class="neg">'+n0(ab)+' em aberto</span> · '+n0(cp)+' com pedido</td><td>'+brl(vp)+'</td>'+(temSi()?'<td>'+brl(vf)+'</td>':'')+'</tr>';
+  document.getElementById('lojBody').innerHTML=tot+rows.map(function(x){return '<tr>'+cols.map(function(c){var v=c.fmt?c.fmt(x):esc(String(c.f(x)));return '<td class="'+(c.cls||'')+'">'+v+'</td>';}).join('')+'</tr>';}).join('');
+  /* conferencia: a base inteira da visao tem de bater com os cards do mes (roteiro vencido presencial e ja visitadas) */
+  var todas=D.lojas.filter(function(l){return vis.indexOf(l[3])>=0;}).map(lojaMes),s=derivar(somar('mes',DAY,vis));
+  var pv=todas.filter(function(x){return x.pres&&x.venc;}).length,pa=todas.filter(function(x){return x.pres&&x.venc&&x.at;}).length,c=document.getElementById('lojConfere');
+  var ok=pv===s.ROTEIRO&&pa===s.VISITADAS_ATE_A_DATA;c.style.display=ok?'none':'';
+  c.innerHTML=ok?'':'<span style="font-size:20px">&#9888;&#65039;</span><div><b>Conferência:</b> a lista dá '+n0(pv)+' lojas presenciais com rota vencida e '+n0(pa)+' atendidas; os cards do mês dizem '+n0(s.ROTEIRO)+' e '+n0(s.VISITADAS_ATE_A_DATA)+'. Avise quem mantém o painel.</div>';}
+/* CSV (D-47): gerado no navegador, sem nada externo; separador ; e virgula decimal, para abrir direto no Excel em portugues */
+function baixarCSV(nome,cab,linhas){var esc2=function(v){v=v==null?'':String(v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  var txt='\ufeff'+[cab].concat(linhas).map(function(r){return r.map(esc2).join(';');}).join('\r\n');
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));a.download=nome;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(a.href);},2000);}
+function num(v){return v==null||isNaN(v)?'':String(Math.round(v*100)/100).replace('.',',');}
+function csvLojas(){var temTel=document.getElementById('canalBox2').style.display!=='none',cols=lcolsAtivas(temTel),rows=lojasDoMes(),d=D.dias[DAY];
+  var cab=cols.map(function(c){return c.l;}),lin=rows.map(function(x){return cols.map(function(c){
+    if(c.k==='rota')return x.rota;if(c.k==='sit')return x.sitLab;if(c.k==='vis')return x.vis.map(function(v){return dd(v[0]);}).join(' ');if(c.k==='vp')return num(x.vp);if(c.k==='vf')return num(x.vf);return c.f(x);});});
+  baixarCSV('lojas_roteiro_'+D.meta.ano_mes+'_ate_'+d.d+'.csv',cab,lin);}
+function csvEquipe(){var rows=linhas(ESC),cols=colsAtivas(rows),d=D.dias[DAY],t=derivar(somar(ESC,DAY,vendDaVisao()));t.nome='TOTAL';t.h=[null,null];
+  var cab=cols.map(function(c,i){return i===0?(porSupervisor()?'Supervisor':'Vendedor'):c.l;}),lin=[t].concat(rows).map(function(r){return cols.map(function(c){var v=valor(r,c.k);
+    if(c.k==='nome')return r.nome;if(typeof v==='number')return num(v);return v==null?'':v;});});
+  baixarCSV('equipe_'+D.meta.ano_mes+'_'+ESC+'_ate_'+d.d+'.csv',cab,lin);}
+
 /* ---------- eventos ---------- */
 function ativar(sel,attr,val){document.querySelectorAll(sel).forEach(function(b){b.className='pill'+(b.getAttribute(attr)===String(val)?' on':'');});}
-function renderTudo(){renderCards();renderBody();renderLojas();}
+function renderTudo(){renderCards();renderBody();renderLojas();renderLojasMes();}
 function mostrarAba(){['dia','equipe','lojas'].forEach(function(x){document.getElementById('tab-'+x).style.display=x===TAB?'':'none';});
   document.querySelectorAll('[data-tab]').forEach(function(b){b.className='tab'+(b.dataset.tab===TAB?' on':'');});}
-document.addEventListener('click',function(e){var b=e.target.closest('[data-esc],[data-tab],[data-sem],[data-sup],[data-f],[data-ca],th[data-k],.exhead');if(!b)return;
+document.addEventListener('click',function(e){var b=e.target.closest('[data-esc],[data-tab],[data-sem],[data-sup],[data-f],[data-ca],[data-st],[data-ca2],[data-csv],th[data-k],th[data-k2],.exhead');if(!b)return;
+  if(b.dataset.st){ST=b.dataset.st;ativar('[data-st]','data-st',ST);renderLojasMes();return;}
+  if(b.dataset.ca2){CANAL2=b.dataset.ca2;ativar('[data-ca2]','data-ca2',CANAL2);renderLojasMes();return;}
+  if(b.dataset.csv){b.dataset.csv==='lojas'?csvLojas():csvEquipe();return;}
+  if(b.dataset.k2){var k2=b.dataset.k2;if(SORT2.k===k2)SORT2.dir*=-1;else SORT2={k:k2,dir:(k2==='vp'||k2==='vf'||k2==='vis')?-1:1};renderLojasMes();return;}
   if(b.dataset.esc){ESC=b.dataset.esc;ativar('[data-esc]','data-esc',ESC);renderCards();renderBody();}
   else if(b.dataset.tab){TAB=b.dataset.tab;mostrarAba();}
   else if(b.dataset.sem){DAY=ultimoDiaDaSemana(b.dataset.sem);ESC='sem';document.getElementById('selDia').value=String(DAY);renderTudo();}
@@ -397,6 +470,8 @@ document.addEventListener('click',function(e){var b=e.target.closest('[data-esc]
 document.getElementById('selDia').addEventListener('change',function(e){DAY=+e.target.value;renderTudo();});
 document.getElementById('selMes').addEventListener('change',function(e){usarMes(+e.target.value);renderTop();document.getElementById('selDia').value=String(DAY);ativar('[data-sup]','data-sup',SUP);renderTudo();});
 document.getElementById('q').addEventListener('input',renderLojas);
+document.getElementById('q2').addEventListener('input',renderLojasMes);
+document.getElementById('selVend').addEventListener('change',function(e){VEND2=+e.target.value;renderLojasMes();});
 
 /* ---------- carga: gzip+base64 -> JSON, sem rede ---------- */
 (async function(){try{

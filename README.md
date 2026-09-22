@@ -62,11 +62,13 @@ run_rota.py · requirements.txt
 
 ## O painel
 
-Um por visão da hierarquia (`painel.niveis_gerados`), com o mês corrente e os meses fechados dentro (seletor de mês, D-45), em `%LOCALAPPDATA%\Dori\ROTA\painel\Painel_Rota_<nível>_<rótulo>.html` (fora do
-OneDrive), 37 a 99 KB, autocontido, só com os dados da própria visão (recorte físico, conferido a cada execução), abre por
-duplo clique no Chrome ou Edge. Cabeçalho (visão, dia do ciclo, dados até) · aviso de vendedores sem check-in · seletor do dia de
-rota e filtro por supervisor · cards **No dia · Semana (do mês, S1–S4) · Mês** · bloco **Sell-in do mês** (faturado × orçado × meta por pesos das semanas × carteira) · tabela/gráfico por vendedor (por supervisor nas visões de gerente e
-head) · lista de lojas do roteiro do dia com status. Depois de editar o template, basta rodar o pipeline de novo.
+Um por visão da hierarquia (`painel.niveis_gerados`), com o mês corrente e os meses fechados dentro (seletor de mês, D-45), em
+`%LOCALAPPDATA%\Dori\ROTA\painel\Painel_Rota_<nível>_<rótulo>.html` (fora do OneDrive), autocontido, só com os dados da própria visão
+(recorte físico, conferido a cada execução), abre por duplo clique no Chrome ou Edge. Estrutura (D-47): cabeçalho (visão, dia do ciclo,
+dados até) · aviso de vendedores sem check-in · seletores de mês e de dia de rota, filtro por supervisor · **3 abas**: *Roteiro do dia*
+(faixa de semanas, uma linha de cards por período Dia/Semana/Mês, 2 gráficos por supervisor/vendedor, lojas do roteiro do dia), *Equipe no mês*
+(tabela por vendedor com CSV) e *Lojas do roteiro* (todas as lojas do mês com situação, filtros e CSV). Depois de editar o template, basta
+rodar o pipeline de novo.
 
 ## Documentação
 
