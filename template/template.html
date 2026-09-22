@@ -334,7 +334,7 @@ function renderSemanas(){var el=document.getElementById('semstrip'),vis=vendDaVi
   el.innerHTML=semanas.map(function(nome){var dias=[];D.dias.forEach(function(d,i){if(d.sem===nome)dias.push(i);});
     var d0=D.dias[dias[0]],fut=dias.every(function(i){return D.dias[i].futuro;}),rot=0,vis_=0;
     dias.forEach(function(i){if(D.dias[i].futuro)return;var s=somar('dia',i,vis);rot+=s.ROTEIRO;vis_+=s.VISITADAS_NO_DIA;});
-    var lojas=D.lojas.filter(function(l){return dias.indexOf(l[4])>=0&&vis.indexOf(l[3])>=0;}).length;
+    var lojas=D.lojas.filter(function(l){return dias.indexOf(l[4])>=0&&vis.indexOf(l[3])>=0&&l[5];}).length;   /* so lojas com controle de visita, como o card Roteiro */
     var u=ultimoDiaDaSemana(nome),w=fut?null:derivar(somar('sem',u,vis)),p=w?pct(w.FATURADO_SI,w.META_SI):null;
     var txt=fut?n0(lojas)+' lojas no roteiro · ainda sem dados':n0(lojas)+' lojas · '+n0(vis_)+' visitadas no dia da rota'+(temMeta()&&w&&w.META_SI?' · sell-in '+n1(p)+'% da meta ('+n1(d0.peso_sem).replace(',0','')+'%)':'');
     var cor=p===null?'var(--line)':(clsMeta(p)==='pos'?'var(--ok)':(clsMeta(p)==='amber'?'var(--amb)':'var(--red)'));
@@ -490,7 +490,7 @@ function fecharDetalhe(){document.getElementById('modal').className='';}
 document.getElementById('modal').addEventListener('click',function(e){if(e.target.id==='modal'||e.target.closest('[data-fechar]'))fecharDetalhe();});
 document.addEventListener('keydown',function(e){if(e.key==='Escape')fecharDetalhe();});
 /* CSV (D-47): gerado no navegador, sem nada externo; separador ; e virgula decimal, para abrir direto no Excel em portugues */
-function baixarCSV(nome,cab,linhas){var esc2=function(v){v=v==null?'':String(v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+function baixarCSV(nome,cab,linhas){var esc2=function(v){v=v==null?'':String(v);if(/^[=+@]/.test(v)||(/^-/.test(v)&&!/^-\d/.test(v)))v=' '+v;/* texto que o Excel leria como formula */return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   var txt='\ufeff'+[cab].concat(linhas).map(function(r){return r.map(esc2).join(';');}).join('\r\n');
   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));a.download=nome;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(a.href);},2000);}
 function num(v){return v==null||isNaN(v)?'':String(Math.round(v*100)/100).replace('.',',');}

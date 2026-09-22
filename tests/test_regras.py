@@ -311,6 +311,17 @@ def test_sellin_so_lojas_da_rota_com_meta_pelos_pesos_das_semanas():
     assert J["meta"]["sellin"]["pesos"]["S1"] == 30 and [(d["sem"], d["peso_acum"]) for d in J["dias"]] == [("S1", 30), ("S1", 30), ("S2", 60)]
 
 
+def test_sellin_sem_faturamento_no_mes_nao_quebra_o_painel():
+    """Virada do mes (D-48): o export de faturado pode vir sem nenhuma linha no 1º dia. O painel sai, com o carimbo 'sem faturamento'."""
+    vazio = {"cliente": SI["cliente"], "carteira": SI["carteira"],
+             "faturado": SI["faturado"].iloc[0:0]}
+    PS = _com_cfg("calendario", "semana", "faixa_do_mes", lambda: painel.preparar(M, L, T("2026-10-07"), vazio))
+    assert PS["sellin"]["ate"] == "sem faturamento no mês" and PS["fat"] == {}
+    assert PS["agg"]["mes"][1].loc["101"]["FATURADO_SI"] == 0 and PS["agg"]["mes"][1].loc["101"]["ORCADO_SI"] == 400
+    J = painel.montar(PS, DV, V_HEAD, "x")
+    painel.validar(J, PS, DV, V_HEAD)
+
+
 # ------------------------------------------------------------------ D-45: mes fechado + mes corrente no mesmo painel
 def _cenario_dois_meses():
     """Setembro (fechado) + outubro (corrente). Em setembro a posicao 999 (ANTIGO, encerrada, sem login) tinha a loja 7 e a rota a

@@ -1,15 +1,16 @@
 # 01 · Inventário das fontes
 
-Medido em 17/09/2026 (diagnóstico da Fase 0 e execução `20260917-155143-25e67c`). Detalhe completo, com os achados de
-qualidade Q1–Q16, em `Fase0_Diagnostico_Roadmap.html`, Etapa 4.
+Medido em 17/09/2026 (diagnóstico da Fase 0 e execução `20260917-155143-25e67c`); nomes de arquivo e linhas atualizados em 22/09/2026
+(D-48, execução `20260922-202528-1c8269`). Detalhe completo, com os achados de qualidade Q1–Q16, em `Fase0_Diagnostico_Roadmap.html`, Etapa 4.
 
 | Fonte | Arquivo | Formato | Linhas | Período | Grão | Chave | Origem · cadência |
 |---|---|---|---:|---|---|---|---|
-| Rota planejada | `bases/Rota/Rota_14092026.xlsx`, aba `Base de Clientes` | xlsx, 12 colunas | 2.973 | rota de set/26: 20 datas úteis, 02/09 a 30/09 | 1 linha = 1 cliente na rota do mês | `Cód. cliente` (7 dígitos, único) | construída pelo time de Atacado (Gui) · mensal |
-| Check-ins | `bases/Mercanet/Mercanet.csv` | CSV `;`, cp1252, 12 colunas | 3.070 | 01/09/2026 06:40 a 16/09/2026 16:15 | 1 linha = 1 evento (CHECKIN 1.608 · CHECKOUT 1.462) | não há id de visita; `USUÁRIO` + `DATA EVENTO` + evento | Mercanet, timeline · diária, acumulada do mês |
-| Pedidos | `bases/Pedidos/Pedidos.csv` | CSV `;`, cp1252, decimal com vírgula, 20 colunas | 2.468 + 1 rodapé de totais | emissão 01/09 a 16/09/2026 | 1 linha = 1 pedido, canal Atacado inteiro | `Pedido` (único) | Mercanet, consulta de pedidos · diária, acumulada do mês |
-| Estrutura | `bases/Estrutura/DePara_Estrutura_Rota.xlsx` | xlsx, abas `Executivos` e `Visoes` | — | — | executivo · painel a gerar | `EXECUTIVO` · `VISAO` | time de Atacado · sob demanda · **pendente (P-01)** |
-| Clientes | `bases/Estrutura/Clientes_Rota.xlsx` | xlsx, 1ª aba | — | — | 1 cliente do Projeto Rota | `COD_CLIENTE` | Douglas · quando a rota muda · nome cortado em 35 caracteres na origem (D-38) |
+| Rota planejada | `bases/Rota/Rota_2026-09.xlsx`, aba `Base de Clientes` | xlsx, 13 colunas (12 + `Cód. vendedor`, D-19) | 2.973 | rota de set/26: 20 datas úteis, 02/09 a 30/09 | 1 linha = 1 cliente na rota do mês | `Cód. cliente` (7 dígitos, único) | construída pelo time de Atacado (Gui) · mensal |
+| Check-ins | `bases/Mercanet/Mercanet_2026-09.csv` | CSV `;`, cp1252, 12 colunas | 4.215 (70 repetidas, 1 de teste) | 01/09/2026 06:40 a 21/09/2026 21:04 | 1 linha = 1 evento (CHECKIN 2.158 · CHECKOUT 1.986) | não há id de visita; `USUÁRIO` + `DATA EVENTO` + evento | Mercanet, timeline · diária, acumulada do mês |
+| Pedidos | `bases/Pedidos/Pedidos_2026-09.csv` | CSV `;`, cp1252, decimal com vírgula, 20 colunas | 4.116 + 1 rodapé de totais | emissão 01/09 a 22/09/2026 | 1 linha = 1 pedido, canal Atacado inteiro | `Pedido` (único) | Mercanet, consulta de pedidos · diária, acumulada do mês |
+| Estrutura | `bases/Estrutura/DePara_Estrutura_Rota.xlsx` | xlsx, aba `Hierarquia` (formato da Hierarquia_Consolidada, D-16) | 22 posições | — | 1 linha = 1 posição N4, com N1–N3 e login do Mercanet | `N4_COD` | Douglas / time de Atacado · sob demanda · fechada (D-30, D-43) |
+| Clientes | `bases/Estrutura/Clientes_Rota.xlsx` | xlsx, 1ª aba | 2.973 | — | 1 cliente do Projeto Rota | `COD_CLIENTE` | Douglas · quando a rota muda · nome cortado em 35 caracteres na origem (D-38) |
+| Sell-in (BI) | `bases/SellIn/Projeto Rota.xlsx` · `Projeto Rota Carteira.xlsx` · `Proejto Rota Faturado.xlsx` | xlsx, rodapé `Total` + `Filtros aplicados` | 3.740 · 594 · 963 | set/26 | cliente × mês · pedido em carteira · pedido × data de faturamento | `COD_CLIENTE` · `PEDIDO` · `PEDIDO`+`DATA_FATURAMENTO` | BI · diária, 3 exports juntos (D-42); mês fechado em subpasta `AAAA-MM/` (D-45) |
 
 ## O que a ingestão tira, contando
 

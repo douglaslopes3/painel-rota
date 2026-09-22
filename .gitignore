@@ -3,9 +3,9 @@ Bases/
 bases/
 data/
 
-# Material de referência com dados reais (protótipo 2 embute a base) e transcrições de reunião
-Painel Referência/
+# Material de referência (transcrições de reunião) e pasta de descarte (D-48: o que saiu de uso fica aqui até ser apagado)
 Transcrições/
+_descartar/
 
 docs/DePara_*.xlsx
 

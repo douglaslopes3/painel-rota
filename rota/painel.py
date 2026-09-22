@@ -92,8 +92,9 @@ def preparar(m: dict[str, pd.DataFrame], lojas: pd.DataFrame, ate: pd.Timestamp,
         f = f[(f["DATA_FATURAMENTO"].dt.strftime("%Y-%m") == mes) & f["COD_CLIENTE"].isin(set(L["COD_CLIENTE"]))]
         f = f.groupby(["COD_CLIENTE", "DATA_FATURAMENTO"])["RECEITA"].sum().reset_index()
         fat = {c: [[int(r.DATA_FATURAMENTO.day), round(float(r.RECEITA), 2)] for r in g.itertuples()] for c, g in f.groupby("COD_CLIENTE")}
-        ult = si["faturado"]["DATA_FATURAMENTO"].max()
-        si_meta = {"ate": f"{ult:%d/%m/%Y}", "pesos": pesos, "semanas": [str(x["nome"]) for x in calendario.faixas()] if pesos else [],
+        ult = si["faturado"]["DATA_FATURAMENTO"].max()          # NaT quando o export do mês ainda não tem faturamento (1º dia do mês)
+        si_meta = {"ate": "sem faturamento no mês" if pd.isna(ult) else f"{ult:%d/%m/%Y}", "pesos": pesos,
+                   "semanas": [str(x["nome"]) for x in calendario.faixas()] if pesos else [],
                    "faixas": CFG["painel"]["faixas_meta_sellin"]}
     return {"ate": ate, "mes": mes, "L": L, "dias_rota": dias_rota, "agg": agg, "jornada_dia": metricas.jornada_dia(fv), "vis": vis, "ped": ped,
             "fat": fat, "sellin": si_meta, "pesos": pesos, "logins": set(fv["LOGIN"].dropna()),

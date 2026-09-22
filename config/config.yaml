@@ -15,6 +15,8 @@ logs:
 fontes:
   # O MÊS de cada arquivo vem do CONTEÚDO (datas), nunca do nome. Dois arquivos da mesma fonte com o mesmo mês abortam:
   # substituir o arquivo do mês corrente, nunca adicionar (versão antiga vai para uma subpasta, ex.: _versoes/, que não é lida).
+  # NOME dos arquivos (D-48, 22/09/2026): sempre <Fonte>_AAAA-MM (Rota_2026-09.xlsx, Mercanet_2026-09.csv, Pedidos_2026-09.csv),
+  # tanto para o mês corrente quanto para os fechados. O pipeline não depende do nome; a convenção é para a operação não se perder na virada.
   rota:                             # rota planejada do mês · 1 linha = 1 cliente · construída pelo time de Atacado
     pasta: bases/Rota
     padroes_aceitos: ["Rota_*.xlsx"]
@@ -37,7 +39,7 @@ fontes:
     # pessoa e posição vaga. Enquanto a coluna não existir na planilha, a ligação é pelo NOME do executivo.
     colunas_opcionais:
       "Cód. vendedor": COD_VENDEDOR
-      "Nome cliente": NOME_CLIENTE        # P-14: sem ela, 1.947 das 2.973 lojas de set/26 aparecem só pelo código (o nome vem de pedido/check-in)
+      "Nome cliente": NOME_CLIENTE        # a rota do Gui vem SEM esta coluna (D-37); o nome das lojas vem do cadastro Clientes_Rota.xlsx (D-38)
     canais_esperados: [PRESENCIAL, TELEFONE]      # gabarito de conferência: valor fora da lista vira aviso, não é corrigido
 
   checkins:                         # Mercanet · timeline de check-in/check-out · 1 linha = 1 evento · extração acumulada do mês (D-06)

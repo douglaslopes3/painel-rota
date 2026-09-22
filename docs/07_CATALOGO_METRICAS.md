@@ -1,8 +1,9 @@
 # 07 · Catálogo de métricas
 
 Uma conta só: `rota.metricas.kpis(LOJA_MES, FATO_VISITA, dias, por)`. **Dia, semana e mês são apenas o conjunto de DIAS DE
-ROTA que entra**: dia = [d]; semana = da segunda-feira até d; mês = do dia 1 até d. Toda métrica de roteiro olha a loja no
-**dia da rota dela**. Parâmetros em `config.yaml → regras`. Testes: `tests/test_regras.py`.
+ROTA que entra**: dia = [d]; semana = do 1º dia da semana do mês (S1 = 1 a 7, S2 = 8 a 14, S3 = 15 a 21, S4 = 22 a 31, D-44) até d;
+faixa = da S<a> até d (D-47); mês = do dia 1 até d. Toda métrica de roteiro olha a loja no **dia da rota dela**. Parâmetros em
+`config.yaml → regras` e `calendario`. Testes: `tests/test_regras.py`.
 
 | Métrica | Definição | Origem |
 |---|---|---|
@@ -26,8 +27,8 @@ ROTA que entra**: dia = [d]; semana = da segunda-feira até d; mês = do dia 1 a
 Também ficam na LOJA_MES, por loja: `DIAS_VISITADOS`, `PRIMEIRA/ULTIMA_VISITA`, `DIAS_FORA_DO_ROTEIRO`, `PEDIDOS_MES`,
 `VALOR_MES`, `QTD_MES` (pedidos válidos do mês, dentro ou fora da janela).
 
-Fora do escopo desta fase (D-09 / GAPs): receita líquida, volume em kg, meta e % da meta, tempo de deslocamento, contato
-telefônico, radar "Minha equipe", "Lojas em aberto".
+Fora do escopo desta fase (D-09 / GAPs): volume em kg, tempo de deslocamento, registro do contato telefônico, radar "Minha equipe",
+"prioridades de ação". Receita líquida e meta entraram pelo sell-in do BI (D-44, abaixo).
 
 ## Regras revistas em 18/09/2026 (D-31 a D-36)
 
@@ -63,8 +64,8 @@ Conferências: faturado dos cards = Σ faturado da lista de lojas; lojas do sell
 
 ## Reconciliação com o protótipo 2 (aceite da Fase 2)
 
-`python ferramentas/reconciliar_prototipo2.py` refaz a conta do JavaScript do protótipo sobre os dados embutidos nele e
-compara com `kpis`, vendedor a vendedor, no mês até 16/09/2026:
+`reconciliar_prototipo2.py` (hoje em `_descartar/ferramentas/`, D-48: só valia com as bases de 16/09) refez a conta do JavaScript do
+protótipo sobre os dados embutidos nele e comparou com `kpis`, vendedor a vendedor, no mês até 16/09/2026:
 
 | Indicador | Protótipo | Modelo | |
 |---|---:|---:|---|
