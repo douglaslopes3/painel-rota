@@ -166,8 +166,9 @@ input.busca{min-width:320px;border:2px solid var(--azul);font-weight:600}
       <span class="tip" id="tipPer"></span></div>
     <div class="cards" id="cards"></div>
     <div class="charts" id="charts"></div>
+    <div class="blk" id="blkLojasDica" style="display:none"><div class="empty">Lojas do roteiro do dia: escolha o período <b>Dia</b>. Para as lojas da semana ou do mês, use a aba <b>Lojas do roteiro</b>.</div></div>
 
-    <div class="blk">
+    <div class="blk" id="blkLojasDia">
       <div class="blkhead">
         <h2>Lojas do roteiro do dia <span class="dim" id="lojTitulo" style="font-size:12px;font-weight:600"></span></h2>
         <div class="toggles searchrow">
@@ -402,6 +403,9 @@ function statusLoja(l){var dm=D.dias[DAY].dm,noDia=null,outra=null;l[6].forEach(
 var MK=[['none','·','Sem contato'],['alt','$','Só pedido'],['mid','◑','Só visita'],['ok','✓','Visita + pedido']];
 function dd(n){return String(n).padStart(2,'0')+'/'+D.dias[DAY].d.slice(5,7);}
 function renderLojas(){var q=(document.getElementById('q').value||'').trim().toLowerCase(),vis=vendDaVisao(),temTel=false,porV={};
+  /* a lista e sempre a do dia selecionado: com Semana, faixa ou Mes ela some (a aba Lojas do roteiro cobre o periodo) */
+  document.getElementById('blkLojasDia').style.display=ESC==='dia'?'':'none';document.getElementById('blkLojasDica').style.display=ESC==='dia'?'none':'';
+  if(ESC!=='dia')return;
   D.lojas.forEach(function(l){if(l[4]!==DAY||vis.indexOf(l[3])<0)return;if(!l[5])temTel=true;(porV[l[3]]=porV[l[3]]||[]).push(l);});
   document.getElementById('canalBox').style.display=temTel?'':'none';
   var d=D.dias[DAY];document.getElementById('lojTitulo').textContent='· '+d.lab+' ('+d.dow+')'+(d.futuro?' · planejado, aguardando dados':'');
@@ -513,7 +517,7 @@ document.addEventListener('click',function(e){var b=e.target.closest('[data-esc]
   if(b.dataset.det){abrirDetalhe(b.dataset.det);return;}
   if(b.dataset.mais){LIM=b.dataset.mais==='todas'?1e9:(b.dataset.mais==='recolher'?LIMPASSO:LIM+LIMPASSO);renderLojasMes();return;}
   if(b.dataset.k2){var k2=b.dataset.k2;if(SORT2.k===k2)SORT2.dir*=-1;else SORT2={k:k2,dir:(k2==='vp'||k2==='vf'||k2==='vis')?-1:1};renderLojasMes();return;}
-  if(b.dataset.esc){ESC=b.dataset.esc;FXA=null;renderCards();renderBody();}
+  if(b.dataset.esc){ESC=b.dataset.esc;FXA=null;renderCards();renderBody();renderLojas();}
   else if(b.dataset.tab){TAB=b.dataset.tab;mostrarAba();}
   else if(b.dataset.sem){var S=D.meta.semanas||[],nova=b.dataset.sem,atual=D.dias[DAY].sem;
     if((ESC==='sem'||ESC==='fx')&&atual&&nova!==atual){var ini=ESC==='fx'&&FXA!==null?FXA:atual,lo=Math.min(S.indexOf(ini),S.indexOf(nova)),hi=Math.max(S.indexOf(D.dias[DAY].sem),S.indexOf(nova));
