@@ -40,6 +40,7 @@ input[type=search]{min-width:240px}
 .hero .lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);font-weight:800}
 .hero .val{font-size:28px;font-weight:800;color:var(--azul);margin-top:5px;line-height:1.05}
 .hero .val small{font-size:14px;font-weight:700;color:var(--ink3)}
+.hero .val.brl{font-size:22px;white-space:nowrap}
 .hero .det{font-size:11.5px;color:#63708B;margin-top:5px;line-height:1.45}
 .hero.grn .val{color:var(--ok)}.hero.amb .val{color:var(--amb)}.hero.red .val{color:var(--red)}.hero.neu .val{color:var(--ink)}
 .hero .bar{height:6px;border-radius:4px;background:#EFF2F7;overflow:hidden;margin-top:8px}
@@ -122,7 +123,7 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
   <div class="blockhead"><h3>Acumulado do mês</h3><span class="ln"></span><span class="tip" id="tipMes"></span></div>
   <div class="cards" id="cMes"></div>
   <div id="blocoSi" style="display:none">
-  <div class="blockhead"><h3>Sell-in do mês · lojas da rota</h3><span class="ln"></span><span class="tip" id="tipSi"></span></div>
+  <div class="blockhead"><h3>Sell-in · lojas da rota</h3><span class="ln"></span><span class="tip" id="tipSi"></span></div>
   <div class="cards" id="cSi"></div>
   </div>
 
@@ -234,7 +235,7 @@ function renderTop(){var m=D.meta;
 }
 
 /* ---------- cards ---------- */
-function hero(lab,val,det,c,bar){return '<div class="hero'+(c?' '+c:'')+'"><div class="lab">'+lab+'</div><div class="val">'+val+'</div><div class="det">'+det+'</div>'+
+function hero(lab,val,det,c,bar){return '<div class="hero'+(c?' '+c:'')+'"><div class="lab">'+lab+'</div><div class="val'+(String(val).indexOf('R$')===0?' brl':'')+'">'+val+'</div><div class="det">'+det+'</div>'+
   (bar===undefined||bar===null?'':'<div class="bar"><i style="width:'+Math.max(0,Math.min(100,bar))+'%"></i></div>')+'</div>';}
 function cards(escopo){var s=derivar(somar(escopo,DAY,vendDaVisao())),fut=D.dias[DAY].futuro,q=D.meta.rotulo_valor,h=[];
   h.push(hero('Lojas no roteiro',n0(s.ROTEIRO),escopo==='dia'?'com visita presencial planejada no dia':'com data de rota no período','neu'));
@@ -246,12 +247,12 @@ function cards(escopo){var s=derivar(somar(escopo,DAY,vendDaVisao())),fut=D.dias
   h.push(hero(esc(q),brl(s.VALOR_PEDIDOS),'valor bruto dos pedidos do mês dessas lojas','neu'));
   h.push(hero('Tempo médio em loja',s.T_LOJA===null?'—':n0(s.T_LOJA)+' <small>min</small>',n0(s.VISITAS_COM_PAR)+' visitas com check-in e check-out no período','neu'));
   if(s.TEL_ROTEIRO) h.push(hero('Telefone com pedido',n0(s.TEL_COM_PEDIDO)+' <small>/ '+n0(s.TEL_ROTEIRO)+'</small>',n1(s.P_TEL)+'% · '+brl(s.TEL_VALOR_PEDIDOS),'',s.P_TEL));
-  var d=D.dias[DAY];
-  if(escopo==='sem'&&temMeta()&&d.sem) h.push(hero('Faturado na semana · sell-in',brl(s.FATURADO_SI),s.META_SI?n1(s.P_META)+'% da meta da '+esc(d.sem)+' ('+brl(s.META_SI)+' = '+n1(d.peso_sem).replace(',0','')+'% do orçado)':'sem orçado nas lojas',heroClsMeta(s.P_META),s.P_META));
   return h.join('');}
 function cardsSi(){var s=derivar(somar('mes',DAY,vendDaVisao())),d=D.dias[DAY],hoje=DAY===ultimoDia(),h=[];
   h.push(hero('Faturado no mês',brl(s.FATURADO_SI),(s.ORCADO_SI?n1(s.P_ORC)+'% do orçado do mês ('+brl(s.ORCADO_SI)+')':'sem orçado nas lojas'),'neu',s.P_ORC));
   if(temMeta()&&d.sem) h.push(hero('% da meta até a data',s.META_SI?n1(s.P_META)+'%':'—','meta até a '+esc(d.sem)+' = '+n1(d.peso_acum).replace(',0','')+'% do orçado = '+brl(s.META_SI),heroClsMeta(s.P_META),s.P_META));
+  if(temMeta()&&d.sem){var w=derivar(somar('sem',DAY,vendDaVisao()));
+    h.push(hero('Faturado na semana · '+esc(d.sem),brl(w.FATURADO_SI),w.META_SI?n1(w.P_META)+'% da meta da semana ('+brl(w.META_SI)+' = '+n1(d.peso_sem).replace(',0','')+'% do orçado) · '+d.sem_ini+' a '+d.lab:'sem orçado nas lojas',heroClsMeta(w.P_META),w.P_META));}
   h.push(hero('Carteira',hoje?brl(s.CARTEIRA_SI):'—',hoje?'pedidos em aberto em '+esc(D.meta.sellin.ate)+' · com a carteira: <b>'+n1(s.P_ORC_CART)+'%</b> do orçado':'a carteira é a da data do export: aparece só no dia mais recente','neu',hoje?s.P_ORC_CART:null));
   h.push(hero('Lojas faturadas',n0(s.LOJAS_FATURADAS_SI)+' <small>/ '+n0(s.LOJAS_SI)+'</small>',n1(s.P_LOJ_FAT)+'% das lojas da rota com faturamento no mês','',s.P_LOJ_FAT));
   return h.join('');}
