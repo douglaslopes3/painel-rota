@@ -82,6 +82,29 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
 .foot{font-size:11px;color:#98A2B8;text-align:center;margin-top:22px;line-height:1.7}
 #erro{display:none;margin:30px auto;max-width:700px;background:var(--redbg);border:1px solid var(--red);color:var(--red);padding:16px;border-radius:10px}
 @media(max-width:640px){.mbar-lab,.mbar-val{width:110px;flex-basis:110px}}
+/* D-47: abas, faixa de semanas, linha unica de cards por periodo e graficos por supervisor/vendedor (estrutura do prototipo 42) */
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:4px 0 14px}
+.tab{padding:9px 16px;font-size:13px;font-weight:800;color:var(--ink3);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;user-select:none}
+.tab:hover{color:var(--azul)}.tab.on{color:var(--azul);border-bottom-color:var(--azul)}
+.semstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:12px}
+.semw{background:var(--card);border:1px solid #E3E8F2;border-radius:10px;padding:9px 12px;cursor:pointer;text-align:left;font:inherit;color:var(--ink)}
+.semw:hover{border-color:var(--azul)}.semw.on{border-color:var(--azul);box-shadow:0 0 0 2px rgba(30,79,161,.15)}.semw.fut{opacity:.55}
+.semw .sl{font-weight:800;font-size:13px}.semw .sd{font-size:11px;color:var(--ink3);margin-left:6px}
+.semw .sm{display:block;font-size:11px;color:#63708B;margin-top:3px}
+.semw .sb{display:block;height:5px;border-radius:3px;background:#EFF2F7;margin-top:6px;overflow:hidden}.semw .sb i{display:block;height:100%;border-radius:3px}
+.perbar{display:flex;align-items:center;gap:10px;margin:6px 0 10px;flex-wrap:wrap}.perbar .tip{font-size:11.5px;color:var(--ink3)}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:12px;margin-top:14px}
+.chbox{background:var(--card);border:1px solid #E3E8F2;border-radius:12px;padding:14px 16px;overflow:hidden}
+.chbox h4{font-size:13px;font-weight:800}.chsub{font-size:11.5px;color:var(--ink3);margin:2px 0 8px}
+.chleg{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink2);margin-bottom:8px}.chleg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.plot{display:flex;gap:10px;align-items:flex-end;overflow-x:auto;padding-bottom:4px}
+.grp{flex:1 1 0;min-width:64px;display:flex;flex-direction:column;align-items:center}
+.gbars{display:flex;gap:3px;align-items:flex-end;height:110px;width:100%;justify-content:center}
+.gbar{flex:0 1 16px;min-width:8px;border-radius:3px 3px 0 0;position:relative}
+.gbar .gv{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:9.5px;font-weight:700;color:var(--ink2);white-space:nowrap}
+.glab{font-size:10.5px;color:var(--ink2);font-weight:700;margin-top:6px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.c1{background:#B9C4D8}.c2{background:var(--azul)}.c3{background:var(--ok)}.c4{background:var(--alt)}.c5{background:var(--amb)}
+@media(max-width:900px){.charts{grid-template-columns:1fr}}
 @media print{.bar0,.toggles,.searchrow{display:none}.exbody{display:block}}
 </style></head><body>
 
@@ -116,48 +139,55 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
     <span id="supPills" style="display:flex;gap:7px;flex-wrap:wrap"></span>
   </div>
 
-  <div class="blockhead"><h3>No dia</h3><span class="ln"></span><span class="tip" id="tipDia"></span></div>
-  <div class="cards" id="cDia"></div>
-  <div class="blockhead"><h3>Acumulado da semana</h3><span class="ln"></span><span class="tip" id="tipSem"></span></div>
-  <div class="cards" id="cSem"></div>
-  <div class="blockhead"><h3>Acumulado do mês</h3><span class="ln"></span><span class="tip" id="tipMes"></span></div>
-  <div class="cards" id="cMes"></div>
+  <div class="tabs"><div class="tab on" data-tab="dia">Roteiro do dia</div><div class="tab" data-tab="equipe">Equipe no mês</div><div class="tab" data-tab="lojas">Lojas do roteiro</div></div>
 
-  <div class="blk">
-    <div class="blkhead">
-      <h2 id="tblTitulo">Vendedores</h2>
-      <div class="toggles">
-        <div class="tg"><span class="lab0">Período</span>
-          <div class="pill on" data-esc="dia">Dia</div><div class="pill" data-esc="sem">Semana</div><div class="pill" data-esc="mes">Mês</div></div>
-        <div class="tg"><span class="lab0">Ver</span>
-          <div class="pill on" data-view="tabela">Tabela</div><div class="pill" data-view="grafico">Gráfico</div></div>
-      </div>
-    </div>
-    <div class="hint">Tabela: clique numa coluna para ordenar. Gráfico: um bloco por linha, com os indicadores lado a lado. Visitas e horários vêm do check-in/check-out; pedidos, da consulta de pedidos do Mercanet.</div>
-    <div id="viewTabela"><table><thead><tr id="tabHead"></tr></thead><tbody id="tabBody"></tbody></table></div>
-    <div id="viewGrafico" style="display:none"></div>
-  </div>
+  <section id="tab-dia">
+    <div class="semstrip" id="semstrip"></div>
+    <div class="perbar"><span class="lab0">Período</span>
+      <div class="pill" data-esc="dia">Dia</div><div class="pill" data-esc="sem">Semana</div><div class="pill" data-esc="mes">Mês</div>
+      <span class="tip" id="tipPer"></span></div>
+    <div class="cards" id="cards"></div>
+    <div class="charts" id="charts"></div>
 
-  <div class="blk">
-    <div class="blkhead">
-      <h2>Lojas do roteiro do dia <span class="dim" id="lojTitulo" style="font-size:12px;font-weight:600"></span></h2>
-      <div class="toggles searchrow">
-        <input type="search" id="q" placeholder="Buscar loja, cidade ou código" aria-label="Buscar loja">
-        <div class="tg"><div class="pill on" data-f="todas">Todas</div><div class="pill" data-f="aberto">Só sem contato</div><div class="pill" data-f="exp">Abrir / fechar todos</div></div>
-        <div class="tg" id="canalBox" style="display:none"><span class="lab0">Canal</span>
-          <div class="pill on" data-ca="todos">Todos</div><div class="pill" data-ca="pres">Presencial</div><div class="pill" data-ca="tel">Telefone</div></div>
+    <div class="blk">
+      <div class="blkhead">
+        <h2>Lojas do roteiro do dia <span class="dim" id="lojTitulo" style="font-size:12px;font-weight:600"></span></h2>
+        <div class="toggles searchrow">
+          <input type="search" id="q" placeholder="Buscar loja, cidade ou código" aria-label="Buscar loja">
+          <div class="tg"><div class="pill on" data-f="todas">Todas</div><div class="pill" data-f="aberto">Só sem contato</div><div class="pill" data-f="exp">Abrir / fechar todos</div></div>
+          <div class="tg" id="canalBox" style="display:none"><span class="lab0">Canal</span>
+            <div class="pill on" data-ca="todos">Todos</div><div class="pill" data-ca="pres">Presencial</div><div class="pill" data-ca="tel">Telefone</div></div>
+        </div>
       </div>
+      <ul class="legend" id="legend"></ul>
+      <div id="lojas"></div>
     </div>
-    <ul class="legend" id="legend"></ul>
-    <div id="lojas"></div>
-  </div>
+  </section>
+
+  <section id="tab-equipe" style="display:none">
+    <div class="blk" style="margin-top:0">
+      <div class="blkhead">
+        <h2 id="tblTitulo">Vendedores</h2>
+        <div class="toggles">
+          <div class="tg"><span class="lab0">Período</span>
+            <div class="pill" data-esc="dia">Dia</div><div class="pill" data-esc="sem">Semana</div><div class="pill" data-esc="mes">Mês</div></div>
+        </div>
+      </div>
+      <div class="hint">Acumulado até o dia de rota selecionado. Clique numa coluna para ordenar. Visitas e horários vêm do check-in/check-out; pedidos, da consulta de pedidos do Mercanet; faturado, carteira e meta, do BI.</div>
+      <div id="viewTabela"><table><thead><tr id="tabHead"></tr></thead><tbody id="tabBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section id="tab-lojas" style="display:none">
+    <div class="blk" style="margin-top:0"><div class="empty">Lojas do roteiro do mês: entra na próxima rodada (D-47, rodada B).</div></div>
+  </section>
 
   <div class="foot" id="foot"></div>
 </div>
 
 <script>
 /*__PAINEL_DADOS__*/
-var PAY=null, D=null, C={}, MES=0, DAY=0, SUP=-1, ESC='dia', VIEW='tabela', SORT={k:'ROTEIRO',dir:-1}, FILT='todas', CANAL='todos', OPEN={}, ALLOPEN=false;
+var PAY=null, D=null, C={}, MES=0, DAY=0, SUP=-1, ESC='dia', TAB='dia', SORT={k:'ROTEIRO',dir:-1}, FILT='todas', CANAL='todos', OPEN={}, ALLOPEN=false;
 /* D-45: um arquivo, varios meses. usarMes(k) monta D com o bloco do mes k + o que e comum a visao; o resto da tela le so D. */
 function usarMes(k){var M=PAY.meses[k];MES=k;
   D={meta:Object.assign({},PAY.meta,M.meta),cols:PAY.cols,lojas_cols:PAY.lojas_cols,dias:M.dias,sups:M.sups,vend:M.vend,agg:M.agg,horarios:M.horarios,lojas:M.lojas};
@@ -238,7 +268,7 @@ function hero(lab,val,det,c,bar){return '<div class="hero'+(c?' '+c:'')+'"><div 
 function cards(escopo){var s=derivar(somar(escopo,DAY,vendDaVisao())),d=D.dias[DAY],fut=d.futuro,q=D.meta.rotulo_valor,h=[];
   var detVis=fut?'aguardando dados do dia':n1(s.P_VIS)+'% das <b>'+n0(s.ROTEIRO)+'</b> lojas no roteiro · <b>'+n0(s.NAO_ATENDIDAS)+'</b> não atendidas no dia · <b>'+n0(s.FORA_DO_ROTEIRO)+'</b> visitadas fora do dia';
   h.push(hero('Visitadas no dia da rota',n0(s.VISITADAS_NO_DIA)+' <small>/ '+n0(s.ROTEIRO)+'</small>',detVis,heroCls(s.P_VIS),s.P_VIS));
-  if(escopo==='mes') h.push(hero('Aderência no mês',n1(s.P_ADE)+'%',n0(s.VISITADAS_ATE_A_DATA)+' de '+n0(s.ROTEIRO)+' lojas com roteiro vencido já foram visitadas no mês, em algum dia',heroCls(s.P_ADE),s.P_ADE));
+  h.push(hero(escopo==='mes'?'Aderência no mês':'Já visitadas no mês',n1(s.P_ADE)+'%',n0(s.VISITADAS_ATE_A_DATA)+' de '+n0(s.ROTEIRO)+' lojas '+(escopo==='mes'?'com roteiro vencido':'do roteiro '+(escopo==='dia'?'do dia':'da semana'))+' já foram visitadas no mês, em algum dia',heroCls(s.P_ADE),s.P_ADE));
   var detPed=n1(s.P_POS)+'% de positivação · '+n0(s.VISITA_E_PEDIDO)+' com visita e pedido · '+n0(s.SEM_CONTATO)+' sem contato'+(s.TEL_ROTEIRO?' · telefone <b>'+n0(s.TEL_COM_PEDIDO)+'</b> / '+n0(s.TEL_ROTEIRO)+' ('+brl(s.TEL_VALOR_PEDIDOS)+')':'');
   h.push(hero('Com pedido no mês',n0(s.COM_PEDIDO)+' <small>/ '+n0(s.ROTEIRO)+'</small>',detPed,'',s.P_POS));
   h.push(hero(esc(q),brl(s.VALOR_PEDIDOS),'pedidos do mês dessas lojas, no Mercanet'+(s.TEL_ROTEIRO?' (inclui telefone)':''),'neu'));
@@ -250,12 +280,43 @@ function cards(escopo){var s=derivar(somar(escopo,DAY,vendDaVisao())),d=D.dias[D
     h.push(hero('% realizado da meta do mês',s.ORCADO_SI?n1(s.P_ORC)+'%':'—',(s.ORCADO_SI?'faltam '+brl(Math.max(0,s.ORCADO_SI-s.FATURADO_SI))+' para a meta do mês':'sem orçado')+ritmo,temMeta()&&d.sem?heroClsMeta(s.P_META):'',s.P_ORC));
     h.push(hero('Carteira',hoje?brl(s.CARTEIRA_SI):'—',hoje?'pedidos em aberto em '+esc(D.meta.sellin.ate)+' · faturado + carteira = <b>'+n1(s.P_ORC_CART)+'%</b> do orçado':'a carteira é a da data do export: aparece só no dia mais recente','neu',hoje?s.P_ORC_CART:null));}
   return h.join('');}
+function ultimoDiaDaSemana(nome){var u=-1;D.dias.forEach(function(d,i){if(d.sem===nome&&!d.futuro)u=i;});
+  if(u<0)D.dias.forEach(function(d,i){if(d.sem===nome&&u<0)u=i;});return u;}
+/* faixa de semanas (D-47): lojas do roteiro, visitadas no dia da rota e faturado x meta de cada semana do mes */
+function renderSemanas(){var el=document.getElementById('semstrip'),vis=vendDaVisao(),atual=D.dias[DAY].sem;
+  var semanas=[];D.dias.forEach(function(d){if(d.sem&&semanas.indexOf(d.sem)<0)semanas.push(d.sem);});
+  if(!semanas.length){el.innerHTML='';return;}
+  el.innerHTML=semanas.map(function(nome){var dias=[];D.dias.forEach(function(d,i){if(d.sem===nome)dias.push(i);});
+    var d0=D.dias[dias[0]],fut=dias.every(function(i){return D.dias[i].futuro;}),rot=0,vis_=0;
+    dias.forEach(function(i){if(D.dias[i].futuro)return;var s=somar('dia',i,vis);rot+=s.ROTEIRO;vis_+=s.VISITADAS_NO_DIA;});
+    var lojas=D.lojas.filter(function(l){return dias.indexOf(l[4])>=0&&vis.indexOf(l[3])>=0;}).length;
+    var u=ultimoDiaDaSemana(nome),w=fut?null:derivar(somar('sem',u,vis)),p=w?pct(w.FATURADO_SI,w.META_SI):null;
+    var txt=fut?n0(lojas)+' lojas no roteiro · ainda sem dados':n0(lojas)+' lojas · '+n0(vis_)+' visitadas no dia da rota'+(temMeta()&&w&&w.META_SI?' · sell-in '+n1(p)+'% da meta ('+n1(d0.peso_sem).replace(',0','')+'%)':'');
+    var cor=p===null?'var(--line)':(clsMeta(p)==='pos'?'var(--ok)':(clsMeta(p)==='amber'?'var(--amb)':'var(--red)'));
+    return '<button class="semw'+(nome===atual?' on':'')+(fut?' fut':'')+'" data-sem="'+nome+'"><span class="sl">'+esc(nome)+'</span><span class="sd"> '+d0.sem_ini+' a '+d0.sem_fim+'</span><span class="sm">'+txt+'</span>'+
+      (temMeta()?'<span class="sb"><i style="width:'+(p===null?0:Math.min(100,p))+'%;background:'+cor+'"></i></span>':'')+'</button>';}).join('');}
+/* graficos (D-47): barras agrupadas por supervisor (gerente/head) ou vendedor (supervisor), no periodo escolhido */
+function grafico(titulo,sub,series,rows){var mx=1;rows.forEach(function(r){series.forEach(function(s){mx=Math.max(mx,s.f(r)||0);});});
+  var curto=function(n){var p=n.split(' ');return p.length>1?p[0]+' '+p[p.length-1][0]+'.':p[0];};
+  return '<div class="chbox"><h4>'+titulo+'</h4><p class="chsub">'+sub+'</p><div class="chleg">'+series.map(function(s){return '<span><i class="'+s.c+'"></i>'+s.l+'</span>';}).join('')+'</div>'+
+    '<div class="plot">'+rows.map(function(r){return '<div class="grp" title="'+esc(r.nome)+'&#10;'+series.map(function(s){return s.l+': '+s.fmt(s.f(r)||0);}).join('&#10;')+'"><div class="gbars">'+
+      series.map(function(s){var v=s.f(r)||0,h=Math.max(v?2:0,100*v/mx);return '<div class="gbar '+s.c+'" style="height:'+h+'%"><span class="gv">'+s.fmt(v)+'</span></div>';}).join('')+
+      '</div><div class="glab">'+esc(curto(r.nome))+'</div></div>';}).join('')+'</div></div>';}
+function renderCharts(){var rows=linhas(ESC).sort(function(a,b){return b.ROTEIRO-a.ROTEIRO;}),d=D.dias[DAY],el=document.getElementById('charts');
+  if(!rows.length){el.innerHTML='';return;}
+  var per=ESC==='dia'?'somente '+d.lab:(ESC==='sem'?(d.sem?d.sem+' · ':'')+'de '+d.sem_ini+' até '+d.lab:'de 01/'+d.d.slice(5,7)+' até '+d.lab);
+  var k=function(v){return v>=1e6?(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mi':(v>=1e3?Math.round(v/1e3)+' mil':n0(v));};
+  var h=grafico('Execução do roteiro','lojas · '+per,[{l:'Roteiro',c:'c1',f:function(r){return r.ROTEIRO;},fmt:n0},{l:'Visitadas no dia da rota',c:'c2',f:function(r){return r.VISITADAS_NO_DIA;},fmt:n0},
+    {l:'Já visitadas no mês',c:'c3',f:function(r){return r.VISITADAS_ATE_A_DATA;},fmt:n0},{l:'Com pedido no mês',c:'c4',f:function(r){return r.COM_PEDIDO;},fmt:n0}],rows);
+  if(temSi()&&ESC!=='dia'){var meta=ESC==='mes'?{l:'Meta do mês (orçado)',f:function(r){return r.ORCADO_SI;}}:{l:'Meta da semana',f:function(r){return r.META_SI;}};
+    h+=grafico('Pedido × faturado × meta','R$ · '+per,[{l:esc(D.meta.rotulo_valor)+' (Mercanet)',c:'c2',f:function(r){return r.VALOR_PEDIDOS;},fmt:k},{l:'Faturado (BI)',c:'c3',f:function(r){return r.FATURADO_SI;},fmt:k},
+      {l:meta.l,c:'c1',f:meta.f,fmt:k}],rows);}
+  el.innerHTML=h;}
 function renderCards(){var d=D.dias[DAY];
   document.getElementById('hCiclo').textContent='Dia '+d.n+' de '+D.dias.length+' do ciclo de '+D.meta.mes+' · '+d.lab+' ('+d.dow+')'+(D.meta.fechado?' · MÊS FECHADO':'')+(d.futuro?' · ainda sem dados: mostrando o planejado':'');
-  document.getElementById('tipDia').textContent='somente '+d.lab+' ('+d.dow+')';
-  document.getElementById('tipSem').textContent=(d.sem?d.sem+' ('+d.sem_ini+' a '+d.sem_fim+') · ':'')+'de '+d.sem_ini+' até '+d.lab;
-  document.getElementById('tipMes').textContent='de 01/'+d.d.slice(5,7)+' até '+d.lab;
-  document.getElementById('cDia').innerHTML=cards('dia');document.getElementById('cSem').innerHTML=cards('sem');document.getElementById('cMes').innerHTML=cards('mes');}
+  var tip={dia:'somente '+d.lab+' ('+d.dow+')',sem:(d.sem?d.sem+' ('+d.sem_ini+' a '+d.sem_fim+') · ':'')+'de '+d.sem_ini+' até '+d.lab,mes:'acumulado de 01/'+d.d.slice(5,7)+' até '+d.lab}[ESC];
+  document.getElementById('tipPer').textContent=tip;ativar('[data-esc]','data-esc',ESC);
+  renderSemanas();document.getElementById('cards').innerHTML=cards(ESC);renderCharts();}
 
 /* ---------- tabela e gráfico ---------- */
 var COLS=[{k:'nome',l:'',cls:'l'},{k:'ROTEIRO',l:'Roteiro'},{k:'VISITADAS_NO_DIA',l:'Visit. no dia'},{k:'P_VIS',l:'% no dia'},{k:'FORA_DO_ROTEIRO',l:'Fora do dia'},
@@ -286,23 +347,7 @@ function renderTable(){var rows=linhas(ESC),cols=colsAtivas(rows);
     ' <span class="ar">'+(SORT.k===c.k?(SORT.dir===1?'&#9650;':'&#9660;'):'')+'</span></th>';}).join('');
   var t=derivar(somar(ESC,DAY,vendDaVisao()));t.nome='TOTAL';t.sub=rows.length+(porSupervisor()?(rows.length===1?' supervisor':' supervisores'):(rows.length===1?' vendedor':' vendedores'));t.semApp=0;t.h=[null,null];
   document.getElementById('tabBody').innerHTML='<tr class="tot">'+cols.map(function(c){return cel(t,c);}).join('')+'</tr>'+rows.map(function(r){return '<tr>'+cols.map(function(c){return cel(r,c);}).join('')+'</tr>';}).join('');}
-function renderChart(){var rows=linhas(ESC).sort(function(a,b){return b.ROTEIRO-a.ROTEIRO;});
-  if(!rows.length){document.getElementById('viewGrafico').innerHTML='<div class="empty">Sem linhas neste recorte.</div>';return;}
-  var maxQ=Math.max.apply(null,rows.map(function(r){return r.VALOR_PEDIDOS;}))||1,maxT=Math.max.apply(null,rows.map(function(r){return r.T_LOJA||0;}))||1;
-  function bar(lab,w,c,txt){return '<div class="mbar-row"><div class="mbar-lab">'+lab+'</div><div class="mbar-track"><div class="mbar-fill '+c+'" style="width:'+Math.max(w?2:0,Math.min(100,w||0))+'%"></div></div><div class="mbar-val">'+txt+'</div></div>';}
-  function fc(p){var c=cls(p);return c==='pos'?'grn':(c==='amber'?'amb':(c==='neg'?'red':''));}
-  function fcM(p){var c=clsMeta(p);return c==='pos'?'grn':(c==='amber'?'amb':(c==='neg'?'red':''));}
-  document.getElementById('viewGrafico').innerHTML=rows.map(function(r){return '<div class="routeblock"><div class="routehead"><b>'+esc(r.nome)+'</b><span class="dim">'+esc(r.sub)+(r.semApp?' · sem check-in':'')+'</span></div>'+
-    bar('Visitadas no dia da rota',r.P_VIS,fc(r.P_VIS),n0(r.VISITADAS_NO_DIA)+' <span class="dim">/ '+n0(r.ROTEIRO)+' · '+n1(r.P_VIS)+'%</span>')+
-    bar('Aderência (visitadas no mês)',r.P_ADE,fc(r.P_ADE),n0(r.VISITADAS_ATE_A_DATA)+' <span class="dim">/ '+n0(r.ROTEIRO)+' · '+n1(r.P_ADE)+'%</span>')+
-    bar('Com pedido no mês',r.P_POS,'',n0(r.COM_PEDIDO)+' <span class="dim">/ '+n0(r.ROTEIRO)+' · '+n1(r.P_POS)+'%</span>')+
-    bar(esc(D.meta.rotulo_valor),100*r.VALOR_PEDIDOS/maxQ,'',brl(r.VALOR_PEDIDOS))+
-    bar('Tempo médio em loja',100*(r.T_LOJA||0)/maxT,'',r.T_LOJA===null?'<span class="dim">—</span>':n0(r.T_LOJA)+' min')+
-    (temMeta()&&ESC!=='dia'?bar('Sell-in: % da meta'+(ESC==='sem'?' da semana':' até a data'),r.P_META||0,fcM(r.P_META),r.P_META===null?'<span class="dim">—</span>':n1(r.P_META)+'% <span class="dim">· '+brl(r.FATURADO_SI)+'</span>'):'')+'</div>';}).join('');}
-function renderBody(){document.getElementById('tblTitulo').textContent=(porSupervisor()?'Supervisores':'Vendedores')+(SUP>=0?' · '+D.sups[SUP].nome:'')+' · '+({dia:'dia',sem:'semana',mes:'mês'})[ESC];
-  document.getElementById('viewTabela').style.display=VIEW==='tabela'?'':'none';document.getElementById('viewGrafico').style.display=VIEW==='grafico'?'':'none';
-  if(VIEW==='tabela')renderTable();else renderChart();}
-
+function renderBody(){document.getElementById('tblTitulo').textContent=(porSupervisor()?'Supervisores':'Vendedores')+(SUP>=0?' · '+D.sups[SUP].nome:'')+' · '+({dia:'dia',sem:'semana',mes:'mês'})[ESC];renderTable();}
 /* ---------- lojas do dia ---------- */
 function statusLoja(l){var dm=D.dias[DAY].dm,noDia=null,outra=null;l[6].forEach(function(v){if(v[0]===dm)noDia=v;else if(v[0]<=dm)outra=v;});
   var peds=l[7].filter(function(p){return p[0]<=dm;});var vis=!!(noDia||outra)&&l[5];return {noDia:noDia,outra:outra,peds:peds,s:(vis?2:0)+(peds.length?1:0)};}
@@ -338,9 +383,12 @@ function linhaLoja(l,st){var m=MK[st.s],det=[];
 /* ---------- eventos ---------- */
 function ativar(sel,attr,val){document.querySelectorAll(sel).forEach(function(b){b.className='pill'+(b.getAttribute(attr)===String(val)?' on':'');});}
 function renderTudo(){renderCards();renderBody();renderLojas();}
-document.addEventListener('click',function(e){var b=e.target.closest('[data-esc],[data-view],[data-sup],[data-f],[data-ca],th[data-k],.exhead');if(!b)return;
-  if(b.dataset.esc){ESC=b.dataset.esc;ativar('[data-esc]','data-esc',ESC);renderBody();}
-  else if(b.dataset.view){VIEW=b.dataset.view;ativar('[data-view]','data-view',VIEW);renderBody();}
+function mostrarAba(){['dia','equipe','lojas'].forEach(function(x){document.getElementById('tab-'+x).style.display=x===TAB?'':'none';});
+  document.querySelectorAll('[data-tab]').forEach(function(b){b.className='tab'+(b.dataset.tab===TAB?' on':'');});}
+document.addEventListener('click',function(e){var b=e.target.closest('[data-esc],[data-tab],[data-sem],[data-sup],[data-f],[data-ca],th[data-k],.exhead');if(!b)return;
+  if(b.dataset.esc){ESC=b.dataset.esc;ativar('[data-esc]','data-esc',ESC);renderCards();renderBody();}
+  else if(b.dataset.tab){TAB=b.dataset.tab;mostrarAba();}
+  else if(b.dataset.sem){DAY=ultimoDiaDaSemana(b.dataset.sem);ESC='sem';document.getElementById('selDia').value=String(DAY);renderTudo();}
   else if(b.dataset.sup!==undefined){SUP=+b.dataset.sup;ativar('[data-sup]','data-sup',SUP);renderTudo();}
   else if(b.dataset.f){if(b.dataset.f==='exp'){ALLOPEN=!ALLOPEN;OPEN={};}else{FILT=b.dataset.f;document.querySelectorAll('[data-f]').forEach(function(x){if(x.dataset.f!=='exp')x.className='pill'+(x.dataset.f===FILT?' on':'');});}renderLojas();}
   else if(b.dataset.ca){CANAL=b.dataset.ca;ativar('[data-ca]','data-ca',CANAL);renderLojas();}
@@ -355,7 +403,7 @@ document.getElementById('q').addEventListener('input',renderLojas);
   var bin=Uint8Array.from(atob(PAYLOAD.b64),function(c){return c.charCodeAt(0);});
   var txt=await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
   PAY=JSON.parse(txt);usarMes(PAY.corrente);
-  ESC=PAY.meta.periodo_inicial||'dia';ativar('[data-esc]','data-esc',ESC);
+  ESC=PAY.meta.periodo_inicial||'dia';mostrarAba();
   renderTop();document.getElementById('selDia').value=String(DAY);document.getElementById('app').style.display='';renderTudo();
 }catch(err){var e=document.getElementById('erro');e.style.display='block';e.innerHTML='<b>Não foi possível abrir os dados do painel.</b><br>Abra o arquivo no Chrome ou no Edge atualizados. Detalhe: '+esc(err&&err.message||err);}})();
 </script>
