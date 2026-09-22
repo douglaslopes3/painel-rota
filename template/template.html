@@ -68,7 +68,7 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
 .mbar-val{width:190px;flex:0 0 190px;text-align:right;font-size:11.5px;font-weight:700}.mbar-val .dim{font-weight:600}
 .exblock{border:1px solid var(--line2);border-radius:10px;margin-top:10px;overflow:hidden}
 .exhead{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;background:#FAFBFD;flex-wrap:wrap}
-.exhead:hover{background:#F2F5FB}.exhead .arrow{font-size:10px;color:var(--ink3);transition:transform .15s}.exblock.open .arrow{transform:rotate(90deg)}
+.exhead:hover{background:#F2F5FB}.exhead .arrow{display:flex;color:var(--ink3);transition:transform .15s}.exblock.open .arrow{transform:rotate(90deg)}
 .exhead h4{font-size:13.5px;font-weight:800}.exhead .cnt{font-size:12px;color:var(--ink2);margin-left:auto}
 .meter{display:flex;width:180px;height:8px;border-radius:4px;overflow:hidden;background:#EFF2F7}
 .exbody{display:none;padding:4px 14px 10px}.exblock.open .exbody{display:block}
@@ -82,6 +82,10 @@ tr.tot td{font-weight:800;background:#F7F9FC;border-bottom:2px solid var(--line)
 .foot{font-size:11px;color:#98A2B8;text-align:center;margin-top:22px;line-height:1.7}
 #erro{display:none;margin:30px auto;max-width:700px;background:var(--redbg);border:1px solid var(--red);color:var(--red);padding:16px;border-radius:10px}
 @media(max-width:640px){.mbar-lab,.mbar-val{width:110px;flex-basis:110px}}
+/* icones inline (SVG) no lugar de emojis */
+.ico{width:18px;height:18px;flex:0 0 18px;vertical-align:-4px}.ico.sm{width:14px;height:14px;flex-basis:14px;vertical-align:-2px}
+.pill .ico.sm{margin-right:4px}.banner .ico{width:22px;height:22px;flex-basis:22px}
+input.busca{background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C889F' stroke-width='2.2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-3.5-3.5'/></svg>") 10px center/16px no-repeat;padding-left:32px}
 /* D-47: abas, faixa de semanas, linha unica de cards por periodo e graficos por supervisor/vendedor (estrutura do prototipo 42) */
 .tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:4px 0 14px}
 .tab{padding:9px 16px;font-size:13px;font-weight:800;color:var(--ink3);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;user-select:none}
@@ -172,7 +176,7 @@ input.busca{min-width:320px;border:2px solid var(--azul);font-weight:600}
       <div class="blkhead">
         <h2>Lojas do roteiro do dia <span class="dim" id="lojTitulo" style="font-size:12px;font-weight:600"></span></h2>
         <div class="toggles searchrow">
-          <input type="search" id="q" class="busca" placeholder="&#128269; Buscar loja, cidade, código ou vendedor" aria-label="Buscar loja">
+          <input type="search" id="q" class="busca" placeholder="Buscar loja, cidade, código ou vendedor" aria-label="Buscar loja">
           <div class="tg"><div class="pill on" data-f="todas">Todas</div><div class="pill" data-f="aberto">Só sem contato</div><div class="pill" data-f="exp">Abrir / fechar todos</div></div>
           <div class="tg" id="canalBox" style="display:none"><span class="lab0">Canal</span>
             <div class="pill on" data-ca="todos">Todos</div><div class="pill" data-ca="pres">Presencial</div><div class="pill" data-ca="tel">Telefone</div></div>
@@ -190,7 +194,7 @@ input.busca{min-width:320px;border:2px solid var(--azul);font-weight:600}
         <div class="toggles">
           <div class="tg"><span class="lab0">Período</span>
             <div class="pill" data-esc="dia">Dia</div><div class="pill" data-esc="sem">Semana</div><div class="pill" data-esc="mes">Mês</div></div>
-          <div class="pill dl" data-csv="equipe">&#11015; CSV</div>
+          <div class="pill dl" data-csv="equipe"><svg class="ico sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>CSV</div>
         </div>
       </div>
       <div class="hint">Acumulado até o dia de rota selecionado. Clique numa coluna para ordenar. Visitas e horários vêm do check-in/check-out; pedidos, da consulta de pedidos do Mercanet; faturado, carteira e meta, do BI.</div>
@@ -203,12 +207,12 @@ input.busca{min-width:320px;border:2px solid var(--azul);font-weight:600}
       <div class="blkhead">
         <h2>Lojas do roteiro do mês <span class="dim" id="lojMesTitulo" style="font-size:12px;font-weight:600"></span></h2>
         <div class="toggles searchrow">
-          <input type="search" id="q2" class="busca" placeholder="&#128269; Buscar loja, cidade, código ou vendedor" aria-label="Buscar loja">
+          <input type="search" id="q2" class="busca" placeholder="Buscar loja, cidade, código ou vendedor" aria-label="Buscar loja">
           <div class="tg"><span class="lab0">Situação</span>
             <div class="pill on" data-st="todas">Base do mês</div><div class="pill" data-st="venc">Rota vencida</div><div class="pill" data-st="atend">Vencida · atendida</div><div class="pill" data-st="aberto">Vencida · sem atendimento</div><div class="pill" data-st="porvir">Por vir</div></div>
           <div class="tg" id="canalBox2" style="display:none"><span class="lab0">Canal</span>
             <div class="pill on" data-ca2="todos">Todos</div><div class="pill" data-ca2="pres">Presencial</div><div class="pill" data-ca2="tel">Telefone</div></div>
-          <div class="pill dl" data-csv="lojas">&#11015; CSV</div>
+          <div class="pill dl" data-csv="lojas"><svg class="ico sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>CSV</div>
         </div>
       </div>
       <div class="hint" id="lojCriterio"></div>
@@ -220,12 +224,14 @@ input.busca{min-width:320px;border:2px solid var(--azul);font-weight:600}
 
   <div id="modal"><div class="mbox" id="mbox"></div></div>
 
-  <div class="foot" id="foot"></div>
 </div>
 
 <script>
 /*__PAINEL_DADOS__*/
 var PAY=null, D=null, C={}, MES=0, DAY=0, SUP=-1, ESC='dia', TAB='dia', SORT={k:'ROTEIRO',dir:-1}, FILT='todas', CANAL='todos', OPEN={}, ALLOPEN=false, ST='todas', CANAL2='todos', VEND=-1, SORT2={k:'sit',dir:1}, LIM=25, LIMPASSO=25, FXA=null;
+var ICO={alerta:'<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L2 20h20L12 3z"/><path d="M12 10v5"/><circle cx="12" cy="17.5" r=".9" fill="currentColor"/></svg>',
+  cadeado:'<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+  seta:'<svg class="ico sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'};
 /* D-45: um arquivo, varios meses. usarMes(k) monta D com o bloco do mes k + o que e comum a visao; o resto da tela le so D. */
 function usarMes(k){var M=PAY.meses[k];MES=k;
   D={meta:Object.assign({},PAY.meta,M.meta),cols:PAY.cols,lojas_cols:PAY.lojas_cols,dias:M.dias,sups:M.sups,vend:M.vend,agg:M.agg,horarios:M.horarios,lojas:M.lojas};
@@ -283,10 +289,10 @@ function renderTop(){var m=D.meta;
   document.getElementById('selMes').innerHTML=PAY.meses.map(function(M,i){return '<option value="'+i+'"'+(i===MES?' selected':'')+'>'+esc(rotuloMes(M))+'</option>';}).join('');
   var selo=document.getElementById('seloMes');if(!selo){selo=document.createElement('div');selo.id='seloMes';selo.className='banner';selo.style.cssText='background:#FFF4D6;border-color:#E6C46A';document.getElementById('semApp').before(selo);}
   selo.style.display=m.fechado?'':'none';
-  selo.innerHTML=m.fechado?'<span style="font-size:20px">&#128274;</span><div><b>Mês fechado · '+esc(m.mes)+'</b> — números congelados no último dia do mês (dados até '+esc(m.dados_ate.split('-').reverse().join('/'))+', bases de '+esc(m.atualizado_em)+'). Escolha outro mês no seletor para ver o mês em andamento.</div>':'';
+  selo.innerHTML=m.fechado?ICO.cadeado+'<div><b>Mês fechado · '+esc(m.mes)+'</b>: números congelados no último dia do mês (dados até '+esc(m.dados_ate.split('-').reverse().join('/'))+', bases de '+esc(m.atualizado_em)+'). Escolha outro mês no seletor para ver o mês em andamento.</div>':'';
   if(temSi()){document.getElementById('pSi').style.display='';document.getElementById('hSi').textContent=m.sellin.ate;}
   var sem=D.vend.filter(function(v){return !v.app;});
-  document.getElementById('semApp').innerHTML=sem.length?'<div class="banner"><span style="font-size:20px">&#9888;&#65039;</span><div><b>'+sem.length+' de '+D.vend.length+
+  document.getElementById('semApp').innerHTML=sem.length?'<div class="banner">'+ICO.alerta+'<div><b>'+sem.length+' de '+D.vend.length+
     (D.vend.length===1?' vendedor':' vendedores')+' sem nenhum check-in no mês:</b> '+sem.map(function(v){return esc(v.nome);}).join(', ')+
     '. '+(sem.length===1?'As visitas dele aparecem zeradas':'As visitas deles aparecem zeradas')+' porque o check-in não está sendo feito no aplicativo, não necessariamente por falta de atendimento.</div></div>':'';
   document.getElementById('selDia').innerHTML=D.dias.map(function(d,i){var n=D.lojas.filter(function(l){return l[4]===i;}).length;
@@ -297,14 +303,6 @@ function renderTop(){var m=D.meta;
   document.getElementById('supPills').innerHTML=pills;renderVendSel();
   document.getElementById('legend').innerHTML=[['ok','✓','Visita + pedido'],['mid','◑','Só visita'],['alt','$','Só pedido'],['none','·','Sem contato']].map(function(x){
     return '<li><span class="mark '+x[0]+'">'+x[1]+'</span>'+x[2]+'</li>';}).join('');
-  document.getElementById('foot').innerHTML='Painel de Rota · Projeto Rota (Atacado) · '+esc(m.visao)+'<br>'+
-    'Visita = cliente com check-in ou check-out no dia (vários registros no mesmo dia contam uma vez)'+(m.dias_que_nao_contam.length?'; registros em '+esc(m.dias_que_nao_contam.join(', '))+' não contam':'')+'. <b>Aderência</b> = lojas com roteiro já vencido que receberam visita no mês, em qualquer dia. '+
-    '<b>Com pedido</b> = loja com pedido no mês até a data (ficam fora os pedidos: '+esc(m.situacoes_excluidas.join(', ').toLowerCase())+'). Lojas atendidas por telefone não têm controle de visita: são acompanhadas pelo pedido.<br>'+
-    esc(m.rotulo_valor)+' = soma do valor bruto (coluna “Valor total do pedido” da consulta de pedidos do Mercanet) dos pedidos válidos do mês, até a data.'+
-    (temSi()?'<br><b>Sell-in</b> (BI, só as lojas da rota — o orçado não inclui clientes do vendedor fora da rota): faturado = Receita Líquida pela data de faturamento, com as devoluções; '+
-      'orçado = Receita Líquida Orçamento do mês; carteira = pedidos em aberto na data do export ('+esc(m.sellin.ate)+').'+
-      (temMeta()?' <b>Meta</b> = orçado × peso das semanas do mês ('+m.sellin.semanas.map(function(k){return esc(k)+' '+n1(m.sellin.pesos[k]).replace(',0','')+'%';}).join(' · ')+
-        '); a meta até a data soma os pesos até a semana do dia, com a semana em andamento inteira.':''):'');
 }
 
 /* ---------- cards ---------- */
@@ -348,7 +346,7 @@ function renderSemanas(){var el=document.getElementById('semstrip'),vis=vendDaVi
 function grafico(titulo,sub,series,rows){var mx=1;rows.forEach(function(r){series.forEach(function(s){mx=Math.max(mx,s.f(r)||0);});});
   var curto=function(n){var p=n.split(' ');return p.length>1?p[0]+' '+p[p.length-1][0]+'.':p[0];};
   return '<div class="chbox"><h4>'+titulo+'</h4><p class="chsub">'+sub+'</p><div class="chleg">'+series.map(function(s){return '<span><i class="'+s.c+'"></i>'+s.l+'</span>';}).join('')+'</div>'+
-    '<div class="plot">'+rows.map(function(r){return '<div class="grp" data-det="'+r.det+'" title="'+esc(r.nome)+' — clique para o detalhe&#10;'+series.map(function(s){return s.l+': '+s.fmt(s.f(r)||0);}).join('&#10;')+'"><div class="gbars">'+
+    '<div class="plot">'+rows.map(function(r){return '<div class="grp" data-det="'+r.det+'" title="'+esc(r.nome)+' (clique para o detalhe)&#10;'+series.map(function(s){return s.l+': '+s.fmt(s.f(r)||0);}).join('&#10;')+'"><div class="gbars">'+
       series.map(function(s){var v=s.f(r)||0,h=Math.max(v?2:0,100*v/mx);return '<div class="gbar '+s.c+'" style="height:'+h+'%"><span class="gv">'+s.fmt(v)+'</span></div>';}).join('')+
       '</div><div class="glab">'+esc(curto(r.nome))+'</div></div>';}).join('')+'</div></div>';}
 function renderCharts(){var rows=linhas(ESC).sort(function(a,b){return b.ROTEIRO-a.ROTEIRO;}),d=D.dias[DAY],el=document.getElementById('charts');
@@ -417,7 +415,7 @@ function renderLojas(){var q=(document.getElementById('q').value||'').trim().toL
     ls.sort(function(a,b){return b.st.s-a.st.s||String(a.l[1]||'').localeCompare(String(b.l[1]||''),'pt-BR');});
     function seg(n,c){return n?'<span style="background:'+c+';flex:'+n+'"></span>':'';}
     var open=ALLOPEN||OPEN[i]||q;
-    return '<div class="exblock'+(open?' open':'')+'" data-v="'+i+'"><div class="exhead"><span class="arrow">&#9654;</span><h4>'+esc(v.nome)+'</h4>'+(D.sups.length>1?'<span class="dim" style="font-size:11.5px">'+esc(D.sups[v.sup].nome)+'</span>':'')+
+    return '<div class="exblock'+(open?' open':'')+'" data-v="'+i+'"><div class="exhead"><span class="arrow">'+ICO.seta+'</span><h4>'+esc(v.nome)+'</h4>'+(D.sups.length>1?'<span class="dim" style="font-size:11.5px">'+esc(D.sups[v.sup].nome)+'</span>':'')+
       (v.app?'':'<span class="tag">sem check-in</span>')+'<div class="meter" title="'+k[3]+' visita + pedido · '+k[2]+' só visita · '+k[1]+' só pedido · '+k[0]+' sem contato">'+
       seg(k[3],'var(--ok)')+seg(k[2],'var(--amb)')+seg(k[1],'var(--alt)')+seg(k[0],'#E3E8F2')+'</div><span class="cnt">'+todas.length+' lojas · '+(k[3]+k[2])+' visitadas · '+(k[3]+k[1])+' com pedido · '+k[0]+' sem contato</span></div>'+
       '<div class="exbody">'+(ls.length?ls.map(function(x){return linhaLoja(x.l,x.st);}).join(''):'<div class="empty">Nada a mostrar com o filtro atual.</div>')+'</div></div>';}).join('');}
@@ -429,7 +427,7 @@ function linhaLoja(l,st){var m=MK[st.s],det=[];
   if(st.peds.length)det.push('<b>pedido</b> '+st.peds.map(function(p){return dd(p[0])+' ('+brl(p[1])+')';}).join(', '));else det.push('sem pedido no mês até esta data');
   if(temSi()){var dm=D.dias[DAY].dm,f=(l[8]||[]).filter(function(x){return x[0]<=dm;}),tf=f.reduce(function(a,x){return a+x[1];},0);
     det.push(f.length?'<b>faturado</b> '+brl(tf)+' no mês (BI)':'sem faturamento no mês até esta data');}
-  return '<div class="store"><span class="mark '+m[0]+'" title="'+m[2]+'">'+m[1]+'</span><div><div class="nm">'+(l[1]?esc(l[1]):'Cód. '+l[0]+' <span class="dim" style="font-weight:500">— sem razão social nas bases</span>')+
+  return '<div class="store"><span class="mark '+m[0]+'" title="'+m[2]+'">'+m[1]+'</span><div><div class="nm">'+(l[1]?esc(l[1]):'Cód. '+l[0]+' <span class="dim" style="font-weight:500">(sem razão social nas bases)</span>')+
     (l[5]?'':'<span class="tag tel">telefone</span>')+'</div><div class="sb">'+esc(l[2])+(l[1]?' · cód. '+l[0]:'')+'</div><div class="sb">'+det.join(' &nbsp;|&nbsp; ')+'</div></div></div>';}
 
 /* ---------- lojas do roteiro do mes (D-47, aba 3) ---------- */
@@ -469,7 +467,7 @@ function renderLojasMes(){var d=D.dias[DAY],vis=vendDaVisao();
   var todas=D.lojas.filter(function(l){return vis.indexOf(l[3])>=0;}).map(lojaMes),s=derivar(somar('mes',DAY,vis));
   var pv=todas.filter(function(x){return x.pres&&x.venc;}).length,pa=todas.filter(function(x){return x.pres&&x.venc&&x.at;}).length,c=document.getElementById('lojConfere');
   var ok=pv===s.ROTEIRO&&pa===s.VISITADAS_ATE_A_DATA;c.style.display=ok?'none':'';
-  c.innerHTML=ok?'':'<span style="font-size:20px">&#9888;&#65039;</span><div><b>Conferência:</b> a lista dá '+n0(pv)+' lojas presenciais com rota vencida e '+n0(pa)+' atendidas; os cards do mês dizem '+n0(s.ROTEIRO)+' e '+n0(s.VISITADAS_ATE_A_DATA)+'. Avise quem mantém o painel.</div>';}
+  c.innerHTML=ok?'':ICO.alerta+'<div><b>Conferência:</b> a lista dá '+n0(pv)+' lojas presenciais com rota vencida e '+n0(pa)+' atendidas; os cards do mês dizem '+n0(s.ROTEIRO)+' e '+n0(s.VISITADAS_ATE_A_DATA)+'. Avise quem mantém o painel.</div>';}
 /* detalhe em pop-up (D-47 ajustes): clique num vendedor/supervisor no grafico ou na tabela */
 function kg(l,v,sub){return '<div class="kg"><div class="l">'+l+'</div><div class="v">'+v+(sub?' <small>'+sub+'</small>':'')+'</div></div>';}
 function abrirDetalhe(det){var tipo=det.split(':')[0],i=+det.split(':')[1],d=D.dias[DAY],idx=tipo==='v'?[i]:D.vend.map(function(v,j){return v.sup===i?j:-1;}).filter(function(j){return j>=0;});
