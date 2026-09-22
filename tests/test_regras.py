@@ -294,6 +294,14 @@ def test_sellin_so_lojas_da_rota_com_meta_pelos_pesos_das_semanas():
     assert (m6["LOJAS_SI"], m6["ORCADO_SI"], m6["META_SI"], m6["FATURADO_SI"], m6["CARTEIRA_SI"], m6["LOJAS_FATURADAS_SI"]) == (4, 400, 120, 80, 40, 2)
     assert (m9["META_SI"], m9["FATURADO_SI"]) == (240, 70) and (s9["META_SI"], s9["FATURADO_SI"], s9["CARTEIRA_SI"], s9["LOJAS_FATURADAS_SI"]) == (120, -10, 0, 0)
     assert PS["agg"]["mes"][1].loc["136"]["CARTEIRA_SI"] == 20 and "FATURADO_SI" in C
+    # faixa de semanas (D-47 ajuste): em 06/10 (S1) nao ha faixa anterior; em 09/10 (S2) a faixa S1-S2 = S1 (ate 07/10) + S2 no que e somavel
+    fx6, fx9 = PS["agg"]["fx"][1], PS["agg"]["fx"][2]
+    assert fx6 == {} and list(fx9) == ["S1"]
+    f = fx9["S1"].loc["101"]
+    s1 = PS["agg"]["sem"][1].loc["101"]                                         # semana S1 ate 06/10 (ultimo dia de rota da S1)
+    s2 = PS["agg"]["sem"][2].loc["101"]                                         # semana S2 ate 09/10
+    assert f["ROTEIRO"] == s1["ROTEIRO"] + s2["ROTEIRO"] == 4 and f["FATURADO_SI"] == s1["FATURADO_SI"] + s2["FATURADO_SI"] == 70
+    assert f["META_SI"] == 400 * 0.60 and f["META_SI"] == s1["META_SI"] + s2["META_SI"]
     Js = {v["ROTULO"]: painel.montar(PS, DV, v, "x") for v in (V_SUP, V_TEL, V_HEAD)}
     for v in (V_SUP, V_TEL, V_HEAD):
         painel.validar(Js[v["ROTULO"]], PS, DV, v)                            # faturado dos cards = faturado da lista de lojas

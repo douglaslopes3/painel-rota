@@ -224,7 +224,7 @@ input.busca{min-width:320px;border:2px solid var(--azul);font-weight:600}
 
 <script>
 /*__PAINEL_DADOS__*/
-var PAY=null, D=null, C={}, MES=0, DAY=0, SUP=-1, ESC='dia', TAB='dia', SORT={k:'ROTEIRO',dir:-1}, FILT='todas', CANAL='todos', OPEN={}, ALLOPEN=false, ST='todas', CANAL2='todos', VEND=-1, SORT2={k:'sit',dir:1}, LIM=25, LIMPASSO=25;
+var PAY=null, D=null, C={}, MES=0, DAY=0, SUP=-1, ESC='dia', TAB='dia', SORT={k:'ROTEIRO',dir:-1}, FILT='todas', CANAL='todos', OPEN={}, ALLOPEN=false, ST='todas', CANAL2='todos', VEND=-1, SORT2={k:'sit',dir:1}, LIM=25, LIMPASSO=25, FXA=null;
 /* D-45: um arquivo, varios meses. usarMes(k) monta D com o bloco do mes k + o que e comum a visao; o resto da tela le so D. */
 function usarMes(k){var M=PAY.meses[k];MES=k;
   D={meta:Object.assign({},PAY.meta,M.meta),cols:PAY.cols,lojas_cols:PAY.lojas_cols,dias:M.dias,sups:M.sups,vend:M.vend,agg:M.agg,horarios:M.horarios,lojas:M.lojas};
@@ -244,8 +244,14 @@ function vendDoSup(){var o=[];D.vend.forEach(function(v,i){if(SUP<0||v.sup===SUP
 function vendDaVisao(){return VEND>=0?[VEND]:vendDoSup();}
 function renderVendSel(){var sel=document.getElementById('selVendTop'),vs=vendDoSup();
   sel.innerHTML='<option value="-1">Todos ('+vs.length+')</option>'+vs.map(function(i){return '<option value="'+i+'">'+esc(D.vend[i].nome)+(D.vend[i].app?'':' · sem check-in')+'</option>';}).join('');sel.value=String(VEND);}
-function somar(escopo,dia,idx){var s={};D.cols.forEach(function(c){s[c]=0;});
-  idx.forEach(function(i){var r=D.agg[escopo][dia][i];D.cols.forEach(function(c,j){s[c]+=r[j];});});return s;}
+/* escopo 'fx' = faixa de semanas contiguas de FXA ate a semana do dia (calculada no pipeline, como as outras) */
+function tabelaDe(escopo,dia){if(escopo!=='fx')return D.agg[escopo][dia];var sem=D.dias[dia].sem,fx=D.agg.fx[dia]||{};
+  if(FXA===null||FXA===sem)return D.agg.sem[dia];if(fx[FXA])return fx[FXA];return D.agg.mes[dia];}
+function somar(escopo,dia,idx){var s={},t=tabelaDe(escopo,dia);D.cols.forEach(function(c){s[c]=0;});
+  idx.forEach(function(i){var r=t[i];D.cols.forEach(function(c,j){s[c]+=r[j];});});return s;}
+function faixaLab(){var d=D.dias[DAY];if(ESC!=='fx'||FXA===null||FXA===d.sem)return d.sem||'';return FXA+' a '+d.sem;}
+function faixaIni(){var d=D.dias[DAY];if(ESC!=='fx'||FXA===null)return d.sem_ini;var i0=null;D.dias.forEach(function(x){if(x.sem===FXA&&i0===null)i0=x.sem_ini;});return i0||d.sem_ini;}
+function pesoFaixa(){var d=D.dias[DAY],S=D.meta.semanas||[],p=D.meta.sellin&&D.meta.sellin.pesos;if(!p||FXA===null)return d.peso_sem;var a=S.indexOf(FXA),b=S.indexOf(d.sem),t=0;for(var i=a;i<=b;i++)t+=p[S[i]]||0;return t;}
 function derivar(s){s.NAO_ATENDIDAS=s.ROTEIRO-s.VISITADAS_NO_DIA;s.TOTAL_VISITADAS=s.VISITADAS_NO_DIA+s.FORA_DO_ROTEIRO;
   s.P_VIS=pct(s.VISITADAS_NO_DIA,s.ROTEIRO);s.P_ADE=pct(s.VISITADAS_ATE_A_DATA,s.ROTEIRO);s.P_POS=pct(s.COM_PEDIDO,s.ROTEIRO);
   s.P_TEL=pct(s.TEL_COM_PEDIDO,s.TEL_ROTEIRO);s.T_LOJA=s.VISITAS_COM_PAR?s.MINUTOS_SOMA/s.VISITAS_COM_PAR:null;
@@ -308,12 +314,12 @@ function hero(lab,val,det,c,bar){return '<div class="hero'+(c?' '+c:'')+'"><div 
 function cards(escopo){var s=derivar(somar(escopo,DAY,vendDaVisao())),d=D.dias[DAY],fut=d.futuro,q=D.meta.rotulo_valor,h=[];
   var detVis=fut?'aguardando dados do dia':n1(s.P_VIS)+'% das <b>'+n0(s.ROTEIRO)+'</b> lojas no roteiro · <b>'+n0(s.NAO_ATENDIDAS)+'</b> não atendidas no dia · <b>'+n0(s.FORA_DO_ROTEIRO)+'</b> visitadas fora do dia';
   h.push(hero('Visitadas no dia da rota',n0(s.VISITADAS_NO_DIA)+' <small>/ '+n0(s.ROTEIRO)+'</small>',detVis,heroCls(s.P_VIS),s.P_VIS));
-  h.push(hero(escopo==='mes'?'Aderência no mês':'Já visitadas no mês',n1(s.P_ADE)+'%',n0(s.VISITADAS_ATE_A_DATA)+' de '+n0(s.ROTEIRO)+' lojas '+(escopo==='mes'?'com roteiro vencido':'do roteiro '+(escopo==='dia'?'do dia':'da semana'))+' já foram visitadas no mês, em algum dia',heroCls(s.P_ADE),s.P_ADE));
+  h.push(hero(escopo==='mes'?'Aderência no mês':'Já visitadas no mês',n1(s.P_ADE)+'%',n0(s.VISITADAS_ATE_A_DATA)+' de '+n0(s.ROTEIRO)+' lojas '+(escopo==='mes'?'com roteiro vencido':'do roteiro '+(escopo==='dia'?'do dia':(escopo==='fx'?'do período':'da semana')))+' já foram visitadas no mês, em algum dia',heroCls(s.P_ADE),s.P_ADE));
   var detPed=n1(s.P_POS)+'% de positivação · '+n0(s.VISITA_E_PEDIDO)+' com visita e pedido · '+n0(s.SEM_CONTATO)+' sem contato'+(s.TEL_ROTEIRO?' · telefone <b>'+n0(s.TEL_COM_PEDIDO)+'</b> / '+n0(s.TEL_ROTEIRO)+' ('+brl(s.TEL_VALOR_PEDIDOS)+')':'');
   h.push(hero('Com pedido no mês',n0(s.COM_PEDIDO)+' <small>/ '+n0(s.ROTEIRO)+'</small>',detPed,'',s.P_POS));
   h.push(hero(esc(q),brl(s.VALOR_PEDIDOS),'pedidos do mês dessas lojas, no Mercanet'+(s.TEL_ROTEIRO?' (inclui telefone)':''),'neu'));
-  if(temSi()&&escopo==='sem'&&temMeta()&&d.sem)
-    h.push(hero('Faturado na semana · '+esc(d.sem),brl(s.FATURADO_SI),s.META_SI?n1(s.P_META)+'% da meta da semana ('+brl(s.META_SI)+' = '+n1(d.peso_sem).replace(',0','')+'% do orçado) · sell-in BI':'sem orçado nas lojas · sell-in BI',heroClsMeta(s.P_META),s.P_META));
+  if(temSi()&&(escopo==='sem'||escopo==='fx')&&temMeta()&&d.sem)
+    h.push(hero((escopo==='fx'?'Faturado no período · ':'Faturado na semana · ')+esc(faixaLab()),brl(s.FATURADO_SI),s.META_SI?n1(s.P_META)+'% da meta '+(escopo==='fx'?'do período':'da semana')+' ('+brl(s.META_SI)+' = '+n1(pesoFaixa()).replace(',0','')+'% do orçado) · sell-in BI':'sem orçado nas lojas · sell-in BI',heroClsMeta(s.P_META),s.P_META));
   if(temSi()&&escopo==='mes'){var hoje=DAY===ultimoDia();
     h.push(hero('Faturado no mês',brl(s.FATURADO_SI),(s.ORCADO_SI?'meta do mês (orçado) '+brl(s.ORCADO_SI):'sem orçado nas lojas')+' · <b>'+n0(s.LOJAS_FATURADAS_SI)+'</b> de '+n0(s.LOJAS_SI)+' lojas faturadas · sell-in BI','neu'));
     var ritmo=temMeta()&&d.sem&&s.META_SI?' · no ritmo dos pesos, até a '+esc(d.sem)+' deveria estar em '+n1(d.peso_acum).replace(',0','')+'%: <b>'+n1(s.P_META)+'%</b> do esperado':'';
@@ -333,7 +339,9 @@ function renderSemanas(){var el=document.getElementById('semstrip'),vis=vendDaVi
     var u=ultimoDiaDaSemana(nome),w=fut?null:derivar(somar('sem',u,vis)),p=w?pct(w.FATURADO_SI,w.META_SI):null;
     var txt=fut?n0(lojas)+' lojas no roteiro · ainda sem dados':n0(lojas)+' lojas · '+n0(vis_)+' visitadas no dia da rota'+(temMeta()&&w&&w.META_SI?' · sell-in '+n1(p)+'% da meta ('+n1(d0.peso_sem).replace(',0','')+'%)':'');
     var cor=p===null?'var(--line)':(clsMeta(p)==='pos'?'var(--ok)':(clsMeta(p)==='amber'?'var(--amb)':'var(--red)'));
-    return '<button class="semw'+(nome===atual?' on':'')+(fut?' fut':'')+'" data-sem="'+nome+'"><span class="sl">'+esc(nome)+'</span><span class="sd"> '+d0.sem_ini+' a '+d0.sem_fim+'</span><span class="sm">'+txt+'</span>'+
+    var S=D.meta.semanas||[],marcada=ESC==='fx'&&FXA!==null?(S.indexOf(nome)>=S.indexOf(FXA)&&S.indexOf(nome)<=S.indexOf(atual)):(ESC!=='mes'&&nome===atual);
+    if(ESC==='mes')marcada=!fut||nome===atual;
+    return '<button class="semw'+(marcada?' on':'')+(fut?' fut':'')+'" data-sem="'+nome+'" title="clique para ver a semana; clique em outra para juntar as duas (faixa contínua)"><span class="sl">'+esc(nome)+'</span><span class="sd"> '+d0.sem_ini+' a '+d0.sem_fim+'</span><span class="sm">'+txt+'</span>'+
       (temMeta()?'<span class="sb"><i style="width:'+(p===null?0:Math.min(100,p))+'%;background:'+cor+'"></i></span>':'')+'</button>';}).join('');}
 /* graficos (D-47): barras agrupadas por supervisor (gerente/head) ou vendedor (supervisor), no periodo escolhido */
 function grafico(titulo,sub,series,rows){var mx=1;rows.forEach(function(r){series.forEach(function(s){mx=Math.max(mx,s.f(r)||0);});});
@@ -344,17 +352,17 @@ function grafico(titulo,sub,series,rows){var mx=1;rows.forEach(function(r){serie
       '</div><div class="glab">'+esc(curto(r.nome))+'</div></div>';}).join('')+'</div></div>';}
 function renderCharts(){var rows=linhas(ESC).sort(function(a,b){return b.ROTEIRO-a.ROTEIRO;}),d=D.dias[DAY],el=document.getElementById('charts');
   if(!rows.length){el.innerHTML='';return;}
-  var per=ESC==='dia'?'somente '+d.lab:(ESC==='sem'?(d.sem?d.sem+' · ':'')+'de '+d.sem_ini+' até '+d.lab:'de 01/'+d.d.slice(5,7)+' até '+d.lab);
+  var per=ESC==='dia'?'somente '+d.lab:(ESC==='sem'||ESC==='fx'?faixaLab()+' · de '+faixaIni()+' até '+d.lab:'de 01/'+d.d.slice(5,7)+' até '+d.lab);
   var k=function(v){return v>=1e6?(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mi':(v>=1e3?Math.round(v/1e3)+' mil':n0(v));};
   var h=grafico('Execução do roteiro','lojas · '+per,[{l:'Roteiro',c:'c1',f:function(r){return r.ROTEIRO;},fmt:n0},{l:'Visitadas no dia da rota',c:'c2',f:function(r){return r.VISITADAS_NO_DIA;},fmt:n0},
     {l:'Já visitadas no mês',c:'c3',f:function(r){return r.VISITADAS_ATE_A_DATA;},fmt:n0},{l:'Com pedido no mês',c:'c4',f:function(r){return r.COM_PEDIDO;},fmt:n0}],rows);
-  if(temSi()&&ESC!=='dia'){var meta=ESC==='mes'?{l:'Meta do mês (orçado)',f:function(r){return r.ORCADO_SI;}}:{l:'Meta da semana',f:function(r){return r.META_SI;}};
+  if(temSi()&&ESC!=='dia'){var meta=ESC==='mes'?{l:'Meta do mês (orçado)',f:function(r){return r.ORCADO_SI;}}:{l:ESC==='fx'?'Meta do período':'Meta da semana',f:function(r){return r.META_SI;}};
     h+=grafico('Pedido × faturado × meta','R$ · '+per,[{l:esc(D.meta.rotulo_valor)+' (Mercanet)',c:'c2',f:function(r){return r.VALOR_PEDIDOS;},fmt:k},{l:'Faturado (BI)',c:'c3',f:function(r){return r.FATURADO_SI;},fmt:k},
       {l:meta.l,c:'c1',f:meta.f,fmt:k}],rows);}
   el.innerHTML=h;}
 function renderCards(){var d=D.dias[DAY];
   document.getElementById('hCiclo').textContent='Dia '+d.n+' de '+D.dias.length+' do ciclo de '+D.meta.mes+' · '+d.lab+' ('+d.dow+')'+(D.meta.fechado?' · MÊS FECHADO':'')+(d.futuro?' · ainda sem dados: mostrando o planejado':'');
-  var tip={dia:'somente '+d.lab+' ('+d.dow+')',sem:(d.sem?d.sem+' ('+d.sem_ini+' a '+d.sem_fim+') · ':'')+'de '+d.sem_ini+' até '+d.lab,mes:'acumulado de 01/'+d.d.slice(5,7)+' até '+d.lab}[ESC];
+  var tip={dia:'somente '+d.lab+' ('+d.dow+')',sem:(d.sem?d.sem+' ('+d.sem_ini+' a '+d.sem_fim+') · ':'')+'de '+d.sem_ini+' até '+d.lab,fx:'semanas '+faixaLab()+' · de '+faixaIni()+' até '+d.lab,mes:'acumulado de 01/'+d.d.slice(5,7)+' até '+d.lab}[ESC];
   document.getElementById('tipPer').textContent=tip;ativar('[data-esc]','data-esc',ESC);
   renderSemanas();document.getElementById('cards').innerHTML=cards(ESC);renderCharts();}
 
@@ -387,7 +395,7 @@ function renderTable(){var rows=linhas(ESC),cols=colsAtivas(rows);
     ' <span class="ar">'+(SORT.k===c.k?(SORT.dir===1?'&#9650;':'&#9660;'):'')+'</span></th>';}).join('');
   var t=derivar(somar(ESC,DAY,vendDaVisao()));t.nome='TOTAL';t.sub=rows.length+(porSupervisor()?(rows.length===1?' supervisor':' supervisores'):(rows.length===1?' vendedor':' vendedores'));t.semApp=0;t.h=[null,null];
   document.getElementById('tabBody').innerHTML='<tr class="tot">'+cols.map(function(c){return cel(t,c);}).join('')+'</tr>'+rows.map(function(r){return '<tr>'+cols.map(function(c){return cel(r,c);}).join('')+'</tr>';}).join('');}
-function renderBody(){document.getElementById('tblTitulo').textContent=(porSupervisor()?'Supervisores':'Vendedores')+(SUP>=0?' · '+D.sups[SUP].nome:'')+' · '+({dia:'dia',sem:'semana',mes:'mês'})[ESC];renderTable();}
+function renderBody(){document.getElementById('tblTitulo').textContent=(porSupervisor()?'Supervisores':'Vendedores')+(SUP>=0?' · '+D.sups[SUP].nome:'')+' · '+({dia:'dia',sem:'semana',fx:'semanas '+faixaLab(),mes:'mês'})[ESC];renderTable();}
 /* ---------- lojas do dia ---------- */
 function statusLoja(l){var dm=D.dias[DAY].dm,noDia=null,outra=null;l[6].forEach(function(v){if(v[0]===dm)noDia=v;else if(v[0]<=dm)outra=v;});
   var peds=l[7].filter(function(p){return p[0]<=dm;});var vis=!!(noDia||outra)&&l[5];return {noDia:noDia,outra:outra,peds:peds,s:(vis?2:0)+(peds.length?1:0)};}
@@ -461,17 +469,17 @@ function renderLojasMes(){var d=D.dias[DAY],vis=vendDaVisao();
 /* detalhe em pop-up (D-47 ajustes): clique num vendedor/supervisor no grafico ou na tabela */
 function kg(l,v,sub){return '<div class="kg"><div class="l">'+l+'</div><div class="v">'+v+(sub?' <small>'+sub+'</small>':'')+'</div></div>';}
 function abrirDetalhe(det){var tipo=det.split(':')[0],i=+det.split(':')[1],d=D.dias[DAY],idx=tipo==='v'?[i]:D.vend.map(function(v,j){return v.sup===i?j:-1;}).filter(function(j){return j>=0;});
-  var s=derivar(somar(ESC,DAY,idx)),nome=tipo==='v'?D.vend[i].nome:D.sups[i].nome,per={dia:'somente '+d.lab,sem:(d.sem?d.sem+' · ':'')+'de '+d.sem_ini+' até '+d.lab,mes:'de 01/'+d.d.slice(5,7)+' até '+d.lab}[ESC];
+  var s=derivar(somar(ESC,DAY,idx)),nome=tipo==='v'?D.vend[i].nome:D.sups[i].nome,per={dia:'somente '+d.lab,sem:(d.sem?d.sem+' · ':'')+'de '+d.sem_ini+' até '+d.lab,fx:faixaLab()+' · de '+faixaIni()+' até '+d.lab,mes:'de 01/'+d.d.slice(5,7)+' até '+d.lab}[ESC];
   var h='<div class="mhead"><div><h3>'+esc(nome)+'</h3><div class="dim">'+(tipo==='v'?(D.sups.length>1?esc(D.sups[D.vend[i].sup].nome)+' · ':'')+D.vend[i].cart+' lojas na carteira'+(D.vend[i].app?'':' · <b>sem check-in no mês</b>'):idx.length+' vendedores')+' · período: '+per+'</div></div><button class="mx" data-fechar="1">×</button></div>';
   h+='<div class="kgrid">'+kg('Roteiro',n0(s.ROTEIRO),'lojas')+kg('Visitadas no dia da rota',n0(s.VISITADAS_NO_DIA),n1(s.P_VIS)+'%')+kg('Fora do dia',n0(s.FORA_DO_ROTEIRO))+kg(ESC==='mes'?'Aderência no mês':'Já visitadas no mês',n1(s.P_ADE)+'%',n0(s.VISITADAS_ATE_A_DATA)+' / '+n0(s.ROTEIRO))+
     kg('Com pedido no mês',n0(s.COM_PEDIDO),n1(s.P_POS)+'%')+kg('Sem contato',n0(s.SEM_CONTATO))+kg(esc(D.meta.rotulo_valor),brl(s.VALOR_PEDIDOS))+kg('Tempo médio em loja',s.T_LOJA===null?'—':n0(s.T_LOJA)+' min',n0(s.VISITAS_COM_PAR)+' visitas com par')+
     (s.TEL_ROTEIRO?kg('Telefone com pedido',n0(s.TEL_COM_PEDIDO)+' / '+n0(s.TEL_ROTEIRO),brl(s.TEL_VALOR_PEDIDOS)):'')+
-    (temSi()&&ESC!=='dia'?kg('Faturado (BI)',brl(s.FATURADO_SI),temMeta()&&s.META_SI?n1(s.P_META)+'% da meta':'')+(ESC==='mes'?kg('Meta do mês (orçado)',brl(s.ORCADO_SI),n1(s.P_ORC)+'% realizado')+(DAY===ultimoDia()?kg('Carteira',brl(s.CARTEIRA_SI),'c/ carteira '+n1(s.P_ORC_CART)+'%'):''):kg('Meta da semana',brl(s.META_SI))):'')+'</div>';
+    (temSi()&&ESC!=='dia'?kg('Faturado (BI)',brl(s.FATURADO_SI),temMeta()&&s.META_SI?n1(s.P_META)+'% da meta':'')+(ESC==='mes'?kg('Meta do mês (orçado)',brl(s.ORCADO_SI),n1(s.P_ORC)+'% realizado')+(DAY===ultimoDia()?kg('Carteira',brl(s.CARTEIRA_SI),'c/ carteira '+n1(s.P_ORC_CART)+'%'):''):kg(ESC==='fx'?'Meta do período':'Meta da semana',brl(s.META_SI))):'')+'</div>';
   if(tipo==='s'){var rows=idx.map(function(j){var r=derivar(somar(ESC,DAY,[j]));r.nome=D.vend[j].nome;r.app=D.vend[j].app;return r;}).sort(function(a,b){return b.ROTEIRO-a.ROTEIRO;});
     h+='<h4>Por vendedor</h4><table><thead><tr><th class="l">Vendedor</th><th>Roteiro</th><th>Visit. no dia</th><th>'+(ESC==='mes'?'Aderência':'Já visit. mês')+'</th><th>Com pedido</th><th>'+esc(D.meta.rotulo_valor)+'</th>'+(temSi()&&ESC!=='dia'?'<th>Faturado</th><th>% meta</th>':'')+'</tr></thead><tbody>'+
       rows.map(function(r){return '<tr><td class="l"><b>'+esc(r.nome)+'</b>'+(r.app?'':'<span class="tag">sem check-in</span>')+'</td><td>'+n0(r.ROTEIRO)+'</td><td>'+n0(r.VISITADAS_NO_DIA)+' <span class="dim">'+n1(r.P_VIS)+'%</span></td><td class="'+cls(r.P_ADE)+'">'+n1(r.P_ADE)+'%</td><td>'+n0(r.COM_PEDIDO)+' <span class="dim">'+n1(r.P_POS)+'%</span></td><td>'+brl(r.VALOR_PEDIDOS)+'</td>'+
         (temSi()&&ESC!=='dia'?'<td>'+brl(r.FATURADO_SI)+'</td><td class="'+clsMeta(r.P_META)+'">'+(r.P_META===null?'—':n1(r.P_META)+'%')+'</td>':'')+'</tr>';}).join('')+'</tbody></table>';}
-  else{var dias=[];D.dias.forEach(function(x,k){if(k>DAY)return;if(ESC==='dia'?k===DAY:(ESC==='mes'||x.sem===d.sem))dias.push(k);});
+  else{var S=D.meta.semanas||[],dias=[];D.dias.forEach(function(x,k){if(k>DAY)return;if(ESC==='dia'?k===DAY:(ESC==='mes'||x.sem===d.sem||(ESC==='fx'&&FXA!==null&&S.indexOf(x.sem)>=S.indexOf(FXA))))dias.push(k);});
     var ab=D.lojas.filter(function(l){return l[3]===i&&dias.indexOf(l[4])>=0;}).map(lojaMes).filter(function(x){return x.sit===0;}).sort(function(a,b){return a.l[4]-b.l[4]||String(a.l[1]||'').localeCompare(String(b.l[1]||''),'pt-BR');});
     h+='<h4>Lojas com rota vencida sem atendimento no período · '+n0(ab.length)+'</h4>'+(ab.length?'<table><thead><tr><th class="l">Loja</th><th class="l">Cidade</th><th>Data da rota</th><th>Canal</th><th>Pedido no mês</th></tr></thead><tbody>'+
       ab.map(function(x){return '<tr><td class="l"><b>'+(x.l[1]?esc(x.l[1]):'Cód. '+x.l[0])+'</b> <span class="dim">'+x.l[0]+'</span></td><td class="l">'+esc(x.l[2])+'</td><td>'+x.rota+'</td><td>'+(x.pres?'Presencial':'Telefone')+'</td><td>'+(x.peds.length?brl(x.vp):'<span class="dim">—</span>')+'</td></tr>';}).join('')+'</tbody></table>':'<div class="empty">Nenhuma: todas as lojas com rota vencida no período foram atendidas.</div>');}
@@ -505,15 +513,19 @@ document.addEventListener('click',function(e){var b=e.target.closest('[data-esc]
   if(b.dataset.det){abrirDetalhe(b.dataset.det);return;}
   if(b.dataset.mais){LIM=b.dataset.mais==='todas'?1e9:(b.dataset.mais==='recolher'?LIMPASSO:LIM+LIMPASSO);renderLojasMes();return;}
   if(b.dataset.k2){var k2=b.dataset.k2;if(SORT2.k===k2)SORT2.dir*=-1;else SORT2={k:k2,dir:(k2==='vp'||k2==='vf'||k2==='vis')?-1:1};renderLojasMes();return;}
-  if(b.dataset.esc){ESC=b.dataset.esc;ativar('[data-esc]','data-esc',ESC);renderCards();renderBody();}
+  if(b.dataset.esc){ESC=b.dataset.esc;FXA=null;renderCards();renderBody();}
   else if(b.dataset.tab){TAB=b.dataset.tab;mostrarAba();}
-  else if(b.dataset.sem){DAY=ultimoDiaDaSemana(b.dataset.sem);ESC='sem';document.getElementById('selDia').value=String(DAY);renderTudo();}
+  else if(b.dataset.sem){var S=D.meta.semanas||[],nova=b.dataset.sem,atual=D.dias[DAY].sem;
+    if((ESC==='sem'||ESC==='fx')&&atual&&nova!==atual){var ini=ESC==='fx'&&FXA!==null?FXA:atual,lo=Math.min(S.indexOf(ini),S.indexOf(nova)),hi=Math.max(S.indexOf(D.dias[DAY].sem),S.indexOf(nova));
+      FXA=S[lo];DAY=ultimoDiaDaSemana(S[hi]);ESC=lo===hi?'sem':'fx';if(ESC==='sem')FXA=null;}
+    else{FXA=null;ESC='sem';DAY=ultimoDiaDaSemana(nova);}
+    document.getElementById('selDia').value=String(DAY);renderTudo();}
   else if(b.dataset.sup!==undefined){SUP=+b.dataset.sup;VEND=-1;LIM=LIMPASSO;ativar('[data-sup]','data-sup',SUP);renderVendSel();renderTudo();}
   else if(b.dataset.f){if(b.dataset.f==='exp'){ALLOPEN=!ALLOPEN;OPEN={};}else{FILT=b.dataset.f;document.querySelectorAll('[data-f]').forEach(function(x){if(x.dataset.f!=='exp')x.className='pill'+(x.dataset.f===FILT?' on':'');});}renderLojas();}
   else if(b.dataset.ca){CANAL=b.dataset.ca;ativar('[data-ca]','data-ca',CANAL);renderLojas();}
   else if(b.dataset.k){var k=b.dataset.k;if(SORT.k===k)SORT.dir*=-1;else SORT={k:k,dir:k==='nome'?1:-1};renderTable();}
   else if(b.classList.contains('exhead')){var p=b.parentElement,i=+p.dataset.v;OPEN[i]=!p.classList.contains('open');p.classList.toggle('open');}});
-document.getElementById('selDia').addEventListener('change',function(e){DAY=+e.target.value;renderTudo();});
+document.getElementById('selDia').addEventListener('change',function(e){DAY=+e.target.value;if(ESC==='fx'){var S=D.meta.semanas||[];if(S.indexOf(D.dias[DAY].sem)<=S.indexOf(FXA)){ESC='sem';FXA=null;}}renderTudo();});
 document.getElementById('selMes').addEventListener('change',function(e){usarMes(+e.target.value);renderTop();document.getElementById('selDia').value=String(DAY);ativar('[data-sup]','data-sup',SUP);renderTudo();});
 document.getElementById('q').addEventListener('input',renderLojas);
 document.getElementById('q2').addEventListener('input',renderLojasMes);

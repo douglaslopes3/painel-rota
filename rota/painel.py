@@ -56,15 +56,31 @@ def preparar(m: dict[str, pd.DataFrame], lojas: pd.DataFrame, ate: pd.Timestamp,
     ini_mes = c_mes["DATA"].min()
 
     pesos = calendario.pesos(mes) if si is not None else None
-    agg = {"dia": [], "sem": [], "mes": []}
+    semanas = [str(f["nome"]) for f in calendario.faixas()] if calendario.modo_semana() == "faixa_do_mes" else []
+    ini_semana = {str(f["nome"]): max(ini_mes, ini_mes.replace(day=min(int(f["de"]), ini_mes.days_in_month))) for f in calendario.faixas()}
+    agg = {"dia": [], "sem": [], "mes": [], "fx": []}
+
+    def calcular(dias, meta_pct, cart):
+        k = (metricas.kpis(L, fv, fp, dias, por="COD_VENDEDOR").merge(metricas.jornada(fv, dias), on="COD_VENDEDOR", how="outer")
+             .merge(metricas.sellin(L, si, dias, meta_pct, cart), on="COD_VENDEDOR", how="outer"))
+        return k.set_index("COD_VENDEDOR")[COLS].fillna(0)
+
     for d, ini_sem, sem in zip(dias_rota["DATA"], dias_rota["SEMANA_INICIO"], dias_rota["SEMANA_NOME"]):
         p_sem, p_acum = _pesos_do_dia(pesos, sem)
         escopos = {"dia": ([d], 0.0, False), "sem": (pd.date_range(max(ini_sem, ini_mes), d), p_sem, False),
                    "mes": (pd.date_range(ini_mes, d), p_acum, True)}                     # carteira = a de hoje: só no mês
         for e, (dias, meta_pct, cart) in escopos.items():
-            k = (metricas.kpis(L, fv, fp, dias, por="COD_VENDEDOR").merge(metricas.jornada(fv, dias), on="COD_VENDEDOR", how="outer")
-                 .merge(metricas.sellin(L, si, dias, meta_pct, cart), on="COD_VENDEDOR", how="outer"))
-            agg[e].append(k.set_index("COD_VENDEDOR")[COLS].fillna(0))
+            agg[e].append(calcular(dias, meta_pct, cart))
+        # faixas de semanas contíguas terminando na semana do dia (D-47 ajuste): S1–S2, S2–S3... A que começa na própria semana é o
+        # escopo "sem"; a que começa na S1 e termina na última semana é o "mes" (fica repetida de propósito: leitura uniforme na tela)
+        fx = {}
+        if not pd.isna(sem) and sem in semanas:
+            k_sem = semanas.index(sem)
+            for a in range(k_sem):
+                dias = pd.date_range(ini_semana[semanas[a]], d)
+                meta = sum(pesos[n] for n in semanas[a:k_sem + 1]) if pesos else 0.0
+                fx[semanas[a]] = calcular(dias, meta, False)
+        agg["fx"].append(fx)
 
     vis = {c: [[int(r.DATA.day), None if pd.isna(r.MINUTOS_EM_LOJA) else round(float(r.MINUTOS_EM_LOJA), 1), int(r.N_CHECKINS)] for r in g.sort_values("DATA").itertuples()]
            for c, g in fv[fv["NA_ROTA"] & fv["CONTA_COMO_VISITA"]].groupby("COD_CLIENTE")}
@@ -106,6 +122,7 @@ def montar(P: dict, dv: pd.DataFrame, visao: dict, atualizado_em: str, fechado: 
         return [[round(float(r[c]), 2) if c in _DECIMAIS else int(r[c]) for c in COLS] for r in k.to_dict("records")]
 
     agg = {e: [tabela(k) for k in P["agg"][e]] for e in ("dia", "sem", "mes")}
+    agg["fx"] = [{a: tabela(k) for a, k in fx.items()} for fx in P["agg"]["fx"]]
     horarios = []
     for d in P["dias_rota"]["DATA"]:
         h = [[None, None] for _ in vend.index]
@@ -123,6 +140,7 @@ def montar(P: dict, dv: pd.DataFrame, visao: dict, atualizado_em: str, fechado: 
         "meta": {"visao": visao["ROTULO"], "nome": visao["NOME"].title(), "nivel": visao["NIVEL"], "mes": f"{_MESES[ate.month - 1]}/{ate.year}",
                  "ano_mes": P["mes"], "fechado": bool(fechado), "periodo_inicial": CFG["painel"].get("periodo_inicial") or "dia",
                  "meses_fechados": int(CFG["painel"].get("meses_fechados") or 0),
+                 "semanas": [str(f["nome"]) for f in calendario.faixas()] if calendario.modo_semana() == "faixa_do_mes" else [],
                  "dados_ate": f"{ate:%Y-%m-%d}", "checkins_ate": None if pd.isna(ci) else f"{ci:%d/%m/%Y}", "pedidos_ate": None if pd.isna(pe) else f"{pe:%d/%m/%Y}",
                  "atualizado_em": atualizado_em, "criterio_pedido": CFG["regras"]["pedido"]["criterio"],
                  "faixas": CFG["painel"]["faixas"], "rotulo_valor": CFG["painel"]["rotulo_valor"],
@@ -152,7 +170,8 @@ def validar(J: dict, P: dict, dv: pd.DataFrame, visao: dict) -> None:
     esperados = set(dv[dv["N3_COD"].isin(n3)]["N4_COD"]) & set(P["L"]["COD_VENDEDOR"])
     if {v["cod"] for v in J["vend"]} != esperados or not {s["cod"] for s in J["sups"]} <= n3:
         raise PainelInvalido(f"'{rot}': vendedores ou supervisores do arquivo diferentes dos da visao.")
-    if any(len(t) != len(J["vend"]) for e in J["agg"].values() for t in e) or any(len(h) != len(J["vend"]) for h in J["horarios"]):
+    if any(len(t) != len(J["vend"]) for e in ("dia", "sem", "mes") for t in J["agg"][e]) or any(len(h) != len(J["vend"]) for h in J["horarios"]) \
+            or any(len(t) != len(J["vend"]) for fx in J["agg"]["fx"] for t in fx.values()):
         raise PainelInvalido(f"'{rot}': tabelas de indicadores com numero de linhas diferente do numero de vendedores.")
     for i, d in enumerate(J["dias"]):
         do_dia = [l for l in J["lojas"] if l[4] == i]
@@ -175,7 +194,7 @@ def validar(J: dict, P: dict, dv: pd.DataFrame, visao: dict) -> None:
 
 
 _META_COMUM = ("visao", "nome", "nivel", "criterio_pedido", "faixas", "rotulo_valor", "situacoes_excluidas", "dias_que_nao_contam",
-               "periodo_inicial", "meses_fechados")
+               "periodo_inicial", "meses_fechados", "semanas")
 
 
 def juntar(partes: list[dict]) -> dict:
