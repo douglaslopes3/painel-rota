@@ -252,7 +252,7 @@ painel:
   rotulo_valor: "Valor dos pedidos"   # D-35 (18/09/2026): o painel mostra o valor bruto = `Valor total do pedido` dos pedidos válidos; a quantidade solicitada saiu
 
 publicacao:                         # D-39 · etapa 6. Destino = <destino>/<rótulo da visão>/<painel.arquivo> (D-05)
-  liberada: false                   # D-28: TRAVA. Só vira true depois da validação com o time (Gui, supervisores, gerentes, head).
+  liberada: true                    # D-28: TRAVA. LIBERADA em 02/10/2026 pelo Douglas ("pode fazer o ensaio e publicar"; D-50). Era false desde 18/09.
                                     # Com false, `python run_rota.py --publicar` recusa e não copia nada.
   destino: "../../../Painéis Comerciais/Gerencial"          # relativo à raiz do projeto (ROTA/), como no DN; as 9 pastas já existem
   pasta_ensaio: "%LOCALAPPDATA%/Dori/ROTA/ensaio_publicacao/Gerencial"   # `--ensaio` copia para cá (pasta local), nunca para o destino real
