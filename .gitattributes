@@ -1,0 +1,11 @@
+# Fim de linha: o repositório guarda LF; a cópia de trabalho no Windows recebe CRLF (padrão dos 3 projetos)
+* text=auto
+
+# Binários: nunca converter
+*.xlsx binary
+*.xlsm binary
+*.docx binary
+*.png binary
+*.jpg binary
+*.zip binary
+*.parquet binary
