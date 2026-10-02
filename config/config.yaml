@@ -250,7 +250,7 @@ painel:
 publicacao:                         # D-39 · etapa 6. Destino = <destino>/<rótulo da visão>/<painel.arquivo> (D-05)
   liberada: false                   # D-28: TRAVA. Só vira true depois da validação com o time (Gui, supervisores, gerentes, head).
                                     # Com false, `python run_rota.py --publicar` recusa e não copia nada.
-  destino: "../../Painéis Comerciais/Gerencial"          # relativo à raiz do projeto (ROTA/), como no DN; as 9 pastas já existem
+  destino: "../../../Painéis Comerciais/Gerencial"          # relativo à raiz do projeto (ROTA/), como no DN; as 9 pastas já existem
   pasta_ensaio: "%LOCALAPPDATA%/Dori/ROTA/ensaio_publicacao/Gerencial"   # `--ensaio` copia para cá (pasta local), nunca para o destino real
   criar_pasta: true                 # pasta do usuário inexistente: criar e avisar (D-05). false = erro naquela visão
   pular_se_identico: true           # mesmo md5 do já publicado = nada é copiado (o OneDrive não ressincroniza)
