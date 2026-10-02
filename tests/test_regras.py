@@ -311,6 +311,21 @@ def test_sellin_so_lojas_da_rota_com_meta_pelos_pesos_das_semanas():
     assert J["meta"]["sellin"]["pesos"]["S1"] == 30 and [(d["sem"], d["peso_acum"]) for d in J["dias"]] == [("S1", 30), ("S1", 30), ("S2", 60)]
 
 
+def test_d52_orcado_vem_do_arquivo_de_metas_e_cobre_loja_que_o_export_nao_traz():
+    """D-52: com a meta do arquivo compartilhado no mes, o orcado da loja sai dela (inclusive a loja que o export do BI nao traz);
+    sem ela, vale o orcado do BI (regra da D-44)."""
+    lojas = pd.DataFrame({"COD_CLIENTE": ["1", "2"], "COD_VENDEDOR": ["101", "101"]})
+    si = {"cliente": pd.DataFrame({"COD_CLIENTE": ["1"], "ORCADO": [100.0]}),
+          "faturado": pd.DataFrame({"COD_CLIENTE": pd.Series(dtype="string"), "RECEITA": pd.Series(dtype=float),
+                                    "DATA_FATURAMENTO": pd.Series(dtype="datetime64[ns]")}),
+          "carteira": pd.DataFrame({"COD_CLIENTE": pd.Series(dtype="string"), "CARTEIRA": pd.Series(dtype=float)})}
+    bi = metricas.sellin(lojas, si, [], 100, False).set_index("COD_VENDEDOR").loc["101"]
+    assert bi["ORCADO_SI"] == 100
+    si["meta"] = pd.DataFrame({"COD_CLIENTE": ["1", "2", "3"], "ORCADO": [100.0, 50.0, 999.0]})     # 3 = fora da rota, nao entra
+    arq = metricas.sellin(lojas, si, [], 100, False).set_index("COD_VENDEDOR").loc["101"]
+    assert (arq["ORCADO_SI"], arq["META_SI"], arq["LOJAS_SI"]) == (150, 150, 2)
+
+
 def test_sellin_sem_faturamento_no_mes_nao_quebra_o_painel():
     """Virada do mes (D-48): o export de faturado pode vir sem nenhuma linha no 1º dia. O painel sai, com o carimbo 'sem faturamento'."""
     vazio = {"cliente": SI["cliente"], "carteira": SI["carteira"],

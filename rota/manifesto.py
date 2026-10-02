@@ -13,7 +13,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from .extract import cache, clientes, comum, estrutura, sellin
+from .extract import cache, clientes, comum, estrutura, metas, sellin
 from .utils.config import PASTA_CURATED
 from .utils.log import log
 
@@ -26,7 +26,7 @@ def bases_declaradas() -> list[Path]:
     out: list[Path] = []
     for f in FONTES:
         out += comum.arquivos(f)
-    for opcional in (estrutura.arquivo(), estrutura.arquivo_hierarquia(), clientes.arquivo(), *sellin.todos_arquivos()):
+    for opcional in (estrutura.arquivo(), estrutura.arquivo_hierarquia(), clientes.arquivo(), *metas.arquivos(), *sellin.todos_arquivos()):
         if opcional is not None and opcional.exists():
             out.append(opcional)
     return sorted(set(out))

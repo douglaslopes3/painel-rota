@@ -149,7 +149,9 @@ def sellin(L: pd.DataFrame, si: dict | None, dias, meta_pct: float, com_carteira
     if si is None:
         return base.assign(**{c: 0.0 for c in SELLIN_COLS[1:]}).rename_axis(por).reset_index()
     dias = pd.to_datetime(list(dias))
-    cli = si["cliente"][["COD_CLIENTE", "ORCADO"]].merge(donos, on="COD_CLIENTE")             # a loja é do vendedor da ROTA
+    # D-52: o orçado vem do arquivo de metas compartilhado ("meta", posto pelo pipeline) quando o mês está nele; senão, do BI
+    orc = si["meta"] if "meta" in si else si["cliente"]
+    cli = orc[["COD_CLIENTE", "ORCADO"]].merge(donos, on="COD_CLIENTE")                       # a loja é do vendedor da ROTA
     fat = si["faturado"].loc[si["faturado"]["DATA_FATURAMENTO"].isin(dias), ["COD_CLIENTE", "RECEITA"]].merge(donos, on="COD_CLIENTE")
     por_loja = fat.groupby([por, "COD_CLIENTE"])["RECEITA"].sum()
     out = base.join(cli.groupby(por)["ORCADO"].sum().rename("ORCADO_SI"))

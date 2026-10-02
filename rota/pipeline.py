@@ -21,7 +21,7 @@ from datetime import datetime
 import pandas as pd
 
 from . import manifesto, metricas, painel, publicar, qualidade, render
-from .extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal, sellin
+from .extract import checkins, clientes, comum, estrutura, metas, pedidos, rota_mensal, sellin
 from .load import parquet
 from .transform import calendario, modelo
 from .utils import log as L
@@ -137,18 +137,47 @@ def _ingerir(forcar: bool) -> dict:
             L.abortar(msg)
         L.log(msg, "aviso")
     si = sellin.carregar(forcar)                   # D-42/D-45: sell-in do BI por mês (raiz = corrente, subpastas = fechados)
+    fonte_orc = str((CFG.get("metas_sellin") or {}).get("fonte", "bi"))
+    if fonte_orc not in ("metas", "bi"):
+        L.abortar(f"metas_sellin.fonte = {fonte_orc!r}: use metas ou bi.")
+    mt = None                                      # D-52: meta por loja do arquivo de metas compartilhado com o Gerencial
+    if si and fonte_orc == "metas":
+        mt, xm = metas.carregar(forcar)
+        if mt is None:
+            L.log(f"metas: nenhum {CFG['fontes']['metas']['padroes_aceitos'][0]} em {CFG['fontes']['metas']['pasta']} — "
+                  "o orcado de todos os meses vem do BI (D-44)", "aviso")
+        else:
+            L.log(f"metas: {', '.join(xm['arquivos'])} | meses {', '.join(xm['meses'])} | fonte do orcado = arquivo de metas (D-52)", "ok")
     cruz = None
     mes_corrente = _ate_dos_dados_staging(ci, pd_)
     for mes, si_m in (si or {}).items():
         avisos, difs = sellin.conferir(si_m)
         for a in avisos:
             L.log(f"sell-in {mes}: " + a, "aviso")
+        dif_meta = None
+        if mt is not None:
+            mm = mt[mt["ANO_MES"] == mes]
+            if mm.empty:
+                L.log(f"sell-in {mes}: mes fora do arquivo de metas — o orcado vem do BI (D-44)", "aviso")
+            else:
+                si_m["meta"] = mm[["COD_CLIENTE", "ORCADO"]].reset_index(drop=True)
+                av_m, dif_meta = metas.conferir_bi(mm, si_m["cliente"])
+                for a in av_m:
+                    L.log(f"sell-in {mes}: " + a, "aviso")
         rota_m = rota[rota["ANO_MES"] == mes]
         if not len(rota_m):
             L.log(f"sell-in {mes}: nao ha rota planejada desse mes — sell-in ignorado", "aviso")
             continue
         c = sellin.cruzar(si_m, rota_m, hier)
         c["_diferencas"] = difs
+        c["_orcado_bi_x_metas"] = dif_meta
+        if "meta" in si_m:
+            lojas = set(rota_m["COD_CLIENTE"])
+            orc_m = float(si_m["meta"].loc[si_m["meta"]["COD_CLIENTE"].isin(lojas), "ORCADO"].sum())
+            orc_b = float(si_m["cliente"].loc[si_m["cliente"]["COD_CLIENTE"].isin(lojas), "ORCADO"].sum())
+            c["orcado_lojas_rota_metas"], c["orcado_lojas_rota_bi"] = round(orc_m, 2), round(orc_b, 2)
+            L.log(f"sell-in {mes}: orcado das lojas da rota = {orc_m:,.2f} pelo arquivo de metas ({orc_b:,.2f} pelo export do BI, "
+                  f"diferenca {orc_m - orc_b:,.2f} das lojas que o export nao traz)", "ok")
         L.log(f"sell-in {mes}: {c['clientes_bi']:,} clientes no BI | {c['lojas_rota_no_bi']:,} de {c['lojas_rota']:,} lojas da rota no BI | "
               f"{c['clientes_bi_fora_da_rota']:,} clientes do BI fora da rota (receita {c['receita_fora_da_rota']:,.2f}) | "
               f"vendedor do BI diferente do da rota em {c['vendedor_diferente']:,} loja(s)", "ok")

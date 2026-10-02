@@ -56,6 +56,8 @@ def gerar(m: dict[str, pd.DataFrame], L: pd.DataFrame, contagens: dict, problema
         n["sellin_rota_sem_bi"] = _csv(sellin["_rota_sem_bi"], "sellin_lojas_da_rota_sem_sellin.csv")
         n["sellin_vendedor_diferente"] = _csv(sellin["_vendedor_diferente"], "sellin_vendedor_diferente_da_rota.csv")
         n["sellin_diferencas"] = _csv(sellin["_diferencas"], "sellin_diferencas_entre_arquivos.csv")
+        if sellin.get("_orcado_bi_x_metas") is not None:      # D-52
+            n["sellin_orcado_bi_x_metas"] = _csv(sellin["_orcado_bi_x_metas"], "sellin_orcado_bi_x_arquivo_de_metas.csv")
     mins = fv["MINUTOS_EM_LOJA"].dropna()
     linhas = [
         f"# Relatório de qualidade · execução {EXECUCAO_ID}", "",
@@ -89,6 +91,13 @@ def gerar(m: dict[str, pd.DataFrame], L: pd.DataFrame, contagens: dict, problema
             f"- Vendedores do BI fora do de-para: {sellin['vendedores_bi_fora_do_depara'] or 'nenhum'}.",
             f"- Diferenças por cliente entre os 3 arquivos: **{n['sellin_diferencas']:,}** → `sellin_diferencas_entre_arquivos.csv`.",
         ]
+        if "sellin_orcado_bi_x_metas" in n:
+            linhas += [
+                f"- Orçado (D-52): vem do arquivo de metas compartilhado. Lojas da rota: R$ {sellin.get('orcado_lojas_rota_metas', 0):,.2f} "
+                f"pelo arquivo × R$ {sellin.get('orcado_lojas_rota_bi', 0):,.2f} pelo export do BI.",
+                f"- Clientes do export com orçado do BI diferente do arquivo de metas: **{n['sellin_orcado_bi_x_metas']:,}** → "
+                "`sellin_orcado_bi_x_arquivo_de_metas.csv`.",
+            ]
     (PASTA_QUALITY / "relatorio_qualidade.md").write_text("\n".join(linhas) + "\n", encoding="utf-8")
     log(f"relatorio de qualidade e {len(list(PASTA_QUALITY.glob('*.csv')))} listas de excecao -> {PASTA_QUALITY.name}/", "ok")
     return n

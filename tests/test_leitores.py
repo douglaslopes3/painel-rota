@@ -22,7 +22,7 @@ for _f in (sys.stdout, sys.stderr):
     except (AttributeError, OSError):
         pass
 
-from rota.extract import checkins, clientes, comum, estrutura, pedidos, rota_mensal, sellin  # noqa: E402
+from rota.extract import checkins, clientes, comum, estrutura, metas, pedidos, rota_mensal, sellin  # noqa: E402
 from rota.utils import texto as T  # noqa: E402
 from rota.utils.config import CFG, RAIZ  # noqa: E402
 
@@ -398,6 +398,38 @@ def test_d51_cadastro_e_a_estrutura_de_clientes_mais_recente_e_nome_fora_do_padr
         assert aborta(clientes.arquivo)
     finally:
         cfg["pasta"] = antes
+
+
+# ------------------------------------------------------------------ metas (D-52)
+def _metas(nome: str, linhas: list[tuple]) -> Path:
+    a = TMP / nome
+    pd.DataFrame(linhas, columns=["CÓDIGO CLIENTE", "CATEGORIA", "Período", "Tipo Meta", "Valor"]).to_excel(a, index=False, sheet_name="Metas FY27")
+    return a
+
+
+def test_d52_metas_somam_categorias_por_cliente_e_mes_e_ignoram_o_volume():
+    set26, out26 = pd.Timestamp("2026-09-01"), pd.Timestamp("2026-10-01")
+    df, x = metas.ler_arquivo(_metas("m_ok.xlsx", [
+        (1001, "GOMAS", set26, "VALOR (R$)", 100.0), (1001, "BALA", set26, "VALOR (R$)", -10.0),
+        (1001, "GOMAS", set26, "VOLUME (KG)", 5.0), (1002, "GOMAS", out26, "VALOR (R$)", 7.5)]))
+    assert df[["ANO_MES", "COD_CLIENTE", "ORCADO"]].values.tolist() == [["2026-09", "1001", 90.0], ["2026-10", "1002", 7.5]]
+    assert x["gabarito"] == {"2026-09": 90.0, "2026-10": 7.5}
+    assert metas.ano_mes_periodo(pd.Series(["2026-11", "46266", None], dtype=object)).tolist()[:2] == ["2026-11", "2026-09"]
+
+
+def test_d52_metas_tipo_desconhecido_chave_repetida_e_periodo_vazio_abortam():
+    p = pd.Timestamp("2026-09-01")
+    assert aborta(metas.ler_arquivo, _metas("m_tipo.xlsx", [(1, "GOMAS", p, "CAIXAS", 1.0)]))
+    assert aborta(metas.ler_arquivo, _metas("m_dup.xlsx", [(1, "GOMAS", p, "VALOR (R$)", 1.0), (1, "GOMAS", p, "VALOR (R$)", 2.0)]))
+    assert aborta(metas.ler_arquivo, _metas("m_per.xlsx", [(1, "GOMAS", None, "VALOR (R$)", 1.0)]))
+
+
+def test_d52_conferencia_bi_x_arquivo_so_avisa():
+    meta = pd.DataFrame({"COD_CLIENTE": ["1", "2"], "ORCADO": [100.0, 50.0]})
+    bi = pd.DataFrame({"COD_CLIENTE": ["1", "2"], "ORCADO": [100.0, 40.0]})
+    av, dif = metas.conferir_bi(meta, bi)
+    assert len(av) == 1 and dif["COD_CLIENTE"].tolist() == ["2"]
+    assert metas.conferir_bi(meta, bi.assign(ORCADO=[100.0, 50.0]))[0] == []
 
 
 if __name__ == "__main__":

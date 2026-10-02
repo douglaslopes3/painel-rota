@@ -193,6 +193,23 @@ fontes:
       - {detalhe: carteira, coluna: CARTEIRA, contra: CARTEIRA}
       - {detalhe: faturado, coluna: RECEITA, contra: RECEITA}
 
+  # D-52 (02/10/2026, Douglas): META do sell-in por loja = arquivo de metas da pasta compartilhada, o MESMO do Gerencial
+  # (D-74/D-87 de lá). Regras do leitor iguais às do Gerencial (rota/extract/metas.py). O orçado do export do BI fica só
+  # como CONFERÊNCIA (aviso + lista em quality/). Ver `metas_sellin.fonte`.
+  metas:
+    pasta: "../../bases compartilhadas"
+    padroes_aceitos: ["Metas_*.xlsx", "Metas_*.xlsm"]
+    aba: null                       # null = a primeira aba ("Metas FY27")
+    colunas:
+      "CÓDIGO CLIENTE": COD_CLIENTE
+      "CATEGORIA": CATEGORIA
+      "Período": PERIODO
+      "Tipo Meta": TIPO
+      "Valor": VALOR
+    tipos_meta:                     # o mesmo mapa do Gerencial; tipo fora daqui ABORTA. Só META_RECEITA é usada no ROTA
+      "VALOR (R$)": META_RECEITA
+      "VOLUME (KG)": META_PESO_KG
+
 calendario:
   # Dia útil = segunda a sexta fora desta lista. Serve ao rótulo dos dias e à contagem "dia X de N"; o planejado vem SEMPRE das
   # datas da rota, não daqui. Parâmetro declarado (o protótipo 2 também trata 07/09/2026 como não útil) — manter atualizado.
@@ -213,6 +230,11 @@ metas_sellin:                       # D-44 (22/09/2026) · meta do sell-in = or�
   # Meta da semana = orçado × peso da semana. Meta até a data = orçado × soma dos pesos até a semana do dia, contada inteira.
   pesos: {S1: 30, S2: 30, S3: 20, S4: 20}
   pesos_por_mes: {}                 # exceção de um mês, ex.: {"2026-12": {S1: 40, S2: 30, S3: 20, S4: 10}}
+  # D-52 (02/10/2026): de onde vem o "orçado" de cada loja da rota.
+  #   metas = arquivo de metas da pasta compartilhada (`fontes.metas`, o mesmo do Gerencial); mês que não estiver no arquivo
+  #           usa o orçado do BI daquele mês, com AVISO
+  #   bi    = `Receita Líquida Orçamento` do export do BI (regra da D-44; deixa de fora as lojas que o export não traz)
+  fonte: metas
 
 regras:                             # D-02: regras do protótipo 2 (conferidas em 100% dos casos contra os dados embutidos nele)
   visita:
