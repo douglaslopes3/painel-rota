@@ -3,6 +3,8 @@
 colunas obrigatórias e garantir que cada mês vem de UM arquivo só."""
 from __future__ import annotations
 
+import re
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -10,6 +12,35 @@ import pandas as pd
 from ..utils.config import CFG, caminho
 from ..utils.log import abortar
 from ..utils.texto import chave_texto
+
+
+def arquivo_mais_recente(fonte: str, modelo: str) -> Path | None:
+    """Bases da pasta compartilhada (D-49, D-51): vale o arquivo do `padrao` com a data AAAAMMDD mais recente no nome;
+    arquivo do padrão sem data válida aborta (uma cópia de conflito do OneDrive não vira desempate silencioso).
+    `modelo` é o nome esperado, só para a mensagem. Sem pasta ou sem arquivo: None."""
+    cfg = CFG["fontes"][fonte]
+    pasta = caminho(cfg["pasta"])
+    if not pasta.is_dir():
+        return None
+    rx = re.compile(cfg["data_regex"])
+    datas: dict[datetime, Path] = {}
+    fora: list[str] = []
+    for a in sorted(pasta.glob(cfg["padrao"])):
+        if a.name.startswith("~$"):
+            continue
+        m = rx.match(a.name)
+        try:
+            d = datetime.strptime(m.group(1), "%Y%m%d") if m else None
+        except ValueError:
+            d = None
+        if d is None:
+            fora.append(a.name)
+        else:
+            datas[d] = a
+    if fora:
+        abortar(f"arquivo(s) fora do padrao {cfg['data_regex']} em {pasta}: {fora}. "
+                f"Renomeie para {modelo} ou tire da pasta.")
+    return datas[max(datas)] if datas else None
 
 
 def arquivos(fonte: str) -> list[Path]:

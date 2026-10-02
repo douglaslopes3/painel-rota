@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Leitor do cadastro de nomes dos clientes do Projeto Rota (`bases/Estrutura/Clientes_Rota.xlsx`).
+"""Leitor do cadastro de nomes dos clientes (D-38; desde a D-51, 02/10/2026, a `Estrutura de Clientes_AAAAMMDD.xlsx`
+mais recente da pasta compartilhada com o DN e o Gerencial — antes, `bases/Estrutura/Clientes_Rota.xlsx`).
 
 A rota mensal traz só o código do cliente, e o Mercanet só dá nome a quem teve
-pedido ou check-in. Este arquivo, mantido pelo Douglas, dá nome a TODA loja da
-rota (D-38): 1 linha = 1 cliente, código + nome.
+pedido ou check-in. Este cadastro dá nome a TODA loja da rota: 1 linha = 1
+cliente, código + nome (o mesmo nome que o Gerencial mostra).
 
 Só lê e confere o formato. Qual nome vale quando há mais de um é regra de
 negócio e vive no config (`regras.nome_cliente.precedencia`).
@@ -14,14 +15,14 @@ from pathlib import Path
 
 import pandas as pd
 
-from ..utils.config import CFG, caminho
+from ..utils.config import CFG
 from ..utils.log import abortar
 from ..utils.texto import digitos, texto
-from .comum import mapear_colunas
+from .comum import arquivo_mais_recente, mapear_colunas
 
 
-def arquivo() -> Path:
-    return caminho(CFG["fontes"]["clientes"]["arquivo"])
+def arquivo() -> Path | None:
+    return arquivo_mais_recente("clientes", "Estrutura de Clientes_AAAAMMDD.xlsx")
 
 
 def ler_arquivo(arq: Path) -> tuple[pd.DataFrame, dict]:

@@ -114,23 +114,25 @@ def _ingerir(forcar: bool) -> dict:
             L.abortar(f"de-para de estrutura com {len(problemas)} problema(s) (listados acima). Corrija o arquivo e rode de novo.")
         if not problemas:
             L.log("de-para fechado com a rota e os check-ins", "ok")
-    cli = None                                     # D-38: cadastro de nomes das lojas da rota
+    cli = None                                     # D-38/D-51: cadastro de nomes (Estrutura de Clientes da pasta compartilhada)
     obrig = bool(CFG["fontes"]["clientes"].get("obrigatorio"))
-    if clientes.arquivo().exists():
+    arq_c = clientes.arquivo()
+    if arq_c is not None and arq_c.exists():
         from .extract import cache
-        cli, x = cache.ler(clientes.arquivo(), clientes.ler_arquivo, forcar)
-        L.contar(clientes.arquivo().name, x["clientes"], 0, **x)
+        cli, x = cache.ler(arq_c, clientes.ler_arquivo, forcar)
+        L.contar(arq_c.name, x["clientes"], 0, **x)
         com_nome = set(cli.dropna(subset=["NOME_CLIENTE"])["COD_CLIENTE"])
         sem = sorted(R - com_nome)
         L.log(f"nomes de clientes: {x['clientes']:,} no cadastro | {len(R & com_nome):,} de {len(R):,} lojas da rota com nome | "
               f"{len(com_nome - R):,} do cadastro fora da rota | maior nome {x['maior_nome']} caracteres ({x['nomes_no_tamanho_maximo']:,} nesse tamanho)", "ok")
         if sem:
-            msg = f"{len(sem)} loja(s) da rota sem nome em {clientes.arquivo().name} (ex.: {sem[:5]}) — aparecem com o nome das outras fontes ou so pelo codigo."
+            msg = f"{len(sem)} loja(s) da rota sem nome em {arq_c.name} (ex.: {sem[:5]}) — aparecem com o nome das outras fontes ou so pelo codigo."
             if obrig:
                 L.abortar(msg)
             L.log(msg, "aviso")
     else:
-        msg = f"cadastro de nomes ausente ({CFG['fontes']['clientes']['arquivo']}): o nome da loja vem so de pedido/check-in."
+        msg = (f"cadastro de nomes ausente ({CFG['fontes']['clientes']['padrao']} em {CFG['fontes']['clientes']['pasta']}): "
+               "o nome da loja vem so de pedido/check-in.")
         if obrig:
             L.abortar(msg)
         L.log(msg, "aviso")

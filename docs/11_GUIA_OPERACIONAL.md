@@ -60,7 +60,7 @@ no fim; o md5 é conferido depois; nada é apagado na pasta do usuário (os pain
 4. **Dia 5 do mês seguinte:** reextrair o mês fechado UMA vez — check-ins e pedidos do mês inteiro (substituindo os arquivos do mês
    fechado) e os 3 exports do BI com o filtro "Ano mês" do mês fechado, salvos em `bases/SellIn/AAAA-MM/` (ex.: `bases/SellIn/2026-09/`).
    Depois disso o mês fechado não é mais tocado.
-5. Lojas novas da rota → incluir código e nome em `bases/Estrutura/Clientes_Rota.xlsx`. Se faltar alguma, o log avisa quantas.
+5. Lojas novas da rota → o nome vem da `Estrutura de Clientes_AAAAMMDD.xlsx` mais recente em `PAINÉIS - SCORECARDS/bases compartilhadas/` (D-51). Se faltar alguma, o log avisa quantas: atualizar a Estrutura (export do BI).
 6. Feriados do mês → `calendario.feriados` no config (feriado não conta como visita, D-32).
 7. Vendedor que saiu → data na coluna `ENCERRADA EM` do de-para (a posição fica lá, para os meses fechados). Vendedor novo → linha nova
    no de-para e no filtro N4 dos exports do BI.
@@ -79,7 +79,7 @@ No painel, o seletor "Mês" mostra o mês em andamento e os últimos 12 meses fe
 | Quantos meses fechados ficam no painel | `painel.meses_fechados` (12). O período em que a tabela abre: `painel.periodo_inicial` (mes) |
 | Uma regra de negócio | editar a lista no config (`regras.*`), rodar os testes, registrar a decisão em `docs/10_DECISOES.md` |
 | Vendedor novo no Projeto Rota | incluir o nome dele no filtro `Nome Vendedor Novo (N4)` dos 3 exports do BI, além do de-para |
-| Nome de loja errado | corrigir em `Clientes_Rota.xlsx` |
+| Nome de loja errado | corrigir na origem (cadastro do BI) e baixar nova `Estrutura de Clientes_AAAAMMDD.xlsx` (D-51) |
 
 Testes (rodar depois de qualquer mudança de regra ou de código):
 

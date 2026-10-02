@@ -367,7 +367,7 @@ def test_sellin_raiz_e_mes_corrente_e_subpasta_e_mes_fechado():
 # ------------------------------------------------------------------ cadastro de nomes (D-38)
 def _cli(nome: str, linhas: list[tuple]) -> Path:
     a = TMP / nome
-    pd.DataFrame(linhas, columns=["Cód. cliente", "Nome Cliente"]).to_excel(a, index=False)
+    pd.DataFrame(linhas, columns=["Cód. cliente", "Cliente"]).to_excel(a, index=False, sheet_name="Planilha1")
     return a
 
 
@@ -380,6 +380,24 @@ def test_clientes_le_codigo_e_nome_e_tolera_linha_repetida_igual():
 def test_clientes_mesmo_codigo_com_dois_nomes_ou_sem_codigo_aborta():
     assert aborta(clientes.ler_arquivo, _cli("c_dup.xlsx", [(1, "LOJA A"), (1, "LOJA B")]))
     assert aborta(clientes.ler_arquivo, _cli("c_sem.xlsx", [(None, "LOJA A"), (2, "LOJA B")]))
+
+
+def test_d51_cadastro_e_a_estrutura_de_clientes_mais_recente_e_nome_fora_do_padrao_aborta():
+    """D-51: vale a Estrutura de Clientes_AAAAMMDD.xlsx de data mais recente; arquivo do padrão sem data válida aborta."""
+    pasta = TMP / "estrutura_clientes"
+    pasta.mkdir(exist_ok=True)
+    cfg = CFG["fontes"]["clientes"]
+    antes = cfg["pasta"]
+    try:
+        cfg["pasta"] = str(pasta)
+        assert clientes.arquivo() is None
+        for n in ("Estrutura de Clientes_20260901.xlsx", "Estrutura de Clientes_20261001.xlsx"):
+            _cli(f"{pasta.name}/{n}", [(1, "LOJA")])
+        assert clientes.arquivo().name == "Estrutura de Clientes_20261001.xlsx"
+        _cli(f"{pasta.name}/Estrutura de Clientes_20261001 (1).xlsx", [(1, "LOJA")])
+        assert aborta(clientes.arquivo)
+    finally:
+        cfg["pasta"] = antes
 
 
 if __name__ == "__main__":
