@@ -59,6 +59,8 @@ visita (1 por cliente × dia) e o pareamento check-in/check-out são regra de ne
 
 ## Estrutura (`estrutura.py`)
 
+> **D-49 (02/10/2026):** desta planilha só são lidos `(N4) CÓDIGO VEND./RCA`, `LOGIN MERCANET`, `NOME MERCANET` e `ENCERRADA EM`. N1 a N4 e os nomes vêm da `Hierarquia_AAAAMMDD.xlsx` mais recente em `../../bases compartilhadas/` (aba `Hierarquia Vendas`: `Cód. cliente`, `Cód./Nome Head Vendas (N1)`, `Cód./Nome Gerente Vendas (N2)`, `Cód./Nome Executivo Vendas (N3)`, `Cód./Nome Representante (N4)`), rótulo `código - nome`. O texto abaixo descreve o formato anterior.
+
 Aba `Hierarquia`, no formato da `Hierarquia_Consolidada` do Gerencial (D-16). Grão: 1 linha = 1 posição de vendedor (N4).
 Colunas no staging: `N1_COD/PAPEL/NOME` (head), `N2_…` (gerente), `N3_…` (sup./exec.), `N4_…` (vend./RCA), `PROJETO`,
 `LOGIN_MERCANET`, `NOME_MERCANET` e os rótulos `N1_ROTULO … N4_ROTULO` = `código - papel - nome` (padrão das pastas de

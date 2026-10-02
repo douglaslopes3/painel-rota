@@ -26,8 +26,8 @@ def bases_declaradas() -> list[Path]:
     out: list[Path] = []
     for f in FONTES:
         out += comum.arquivos(f)
-    for opcional in (estrutura.arquivo(), clientes.arquivo(), *sellin.todos_arquivos()):
-        if opcional.exists():
+    for opcional in (estrutura.arquivo(), estrutura.arquivo_hierarquia(), clientes.arquivo(), *sellin.todos_arquivos()):
+        if opcional is not None and opcional.exists():
             out.append(opcional)
     return sorted(set(out))
 

@@ -90,34 +90,38 @@ fontes:
     reconciliar: [VALOR_PEDIDO, QTD_SOLICITADA, VALOR_BRUTO]
     situacoes_esperadas: ["Aberto", "Fatur. Parcial", "Faturado", "Fatur. + Canc.", "Bloqueado", "Cancelado"]
 
-  estrutura:                        # hierarquia N1–N4 do Projeto Rota + login do Mercanet, no formato da Hierarquia_Consolidada (D-16)
+  estrutura:                        # D-49 (02/10/2026): so N4 -> login do Mercanet. A hierarquia N1-N4 vem de `hierarquia` (abaixo)
     arquivo: bases/Estrutura/DePara_Estrutura_Rota.xlsx
     obrigatorio: true               # D-39 (18/09/2026): o de-para fechou — ausência ou problema ABORTA. false = só avisa (D-15)
     # posições (código N4) que podem ficar SEM login sem contar como problema: posto vago conhecido.
     posicoes_sem_login_aceitas: []               # 121 · Litoral preenchida em 22/09/2026 (Marcelo Silva, MPDSILVA · D-43). Posto vago conhecido entra aqui (D-18).
     aba: Hierarquia
     # nome no staging -> cabeçalhos aceitos. Vale a coluna cujo cabeçalho TERMINA com um deles (sem acento, caixa ou quebra de
-    # linha): "CRIAR NO BI / (N1) / HEAD" casa com "(N1) HEAD". As visões (painéis) saem de N1, N2 e N3; não são digitadas.
+    # linha). D-49: as colunas N1-N3, papel/nome do N4 e PROJETO continuam na planilha, mas nao sao mais lidas (a hierarquia e a
+    # base comum); o arquivo nao foi alterado.
     colunas:
-      N1_COD: ["(N1) CÓDIGO HEAD"]
-      N1_PAPEL: ["(N1) HEAD"]
-      N1_NOME: ["(N1) NOME HEAD"]
-      N2_COD: ["(N2) CÓDIGO GERENTE"]
-      N2_PAPEL: ["(N2) GERENTE"]
-      N2_NOME: ["(N2) NOME GERENTE"]
-      N3_COD: ["(N3) CÓDIGO SUP./EXEC."]
-      N3_PAPEL: ["(N3) SUP./EXEC."]
-      N3_NOME: ["(N3) NOME SUP./EXEC."]
       N4_COD: ["(N4) CÓDIGO VEND./RCA"]
-      N4_PAPEL: ["(N4) VEND./RCA"]
-      N4_NOME: ["(N4) NOME VEND./RCA"]          # tem de ser igual ao `Executivo` da rota enquanto a rota não trouxer o código
-      PROJETO: ["PROJETO"]
       LOGIN_MERCANET: ["LOGIN MERCANET", "LOGIN MERCATNET"]   # a 2ª grafia é a do arquivo de 17/09/2026
       NOME_MERCANET: ["NOME MERCANET"]
-    # D-45 (22/09/2026): coluna OPCIONAL. Posição com data = encerrada (vendedor saiu): não precisa de login nem de lojas na rota do
-    # mês corrente; continua no de-para para os meses fechados em que teve lojas. Sem a coluna, toda posição é ativa.
     colunas_opcionais:
       ENCERRADA_EM: ["ENCERRADA EM"]
+
+  # D-49 (02/10/2026, decisoes 14/15 do Douglas): hierarquia oficial comum ao DN e ao Gerencial. Vale a Hierarquia_AAAAMMDD.xlsx
+  # de data mais recente no nome; arquivo do padrao sem data valida aborta. A cadeia N1-N3 de cada vendedor (N4) sai SO das linhas
+  # em que os clientes da rota estao com esse mesmo N4 na base (opcao B); cadeia ambigua aborta. Cliente da rota com outro N4 na
+  # base fica com quem visita e vai para a lista de excecao. Rotulo "codigo - nome" (mesmo formato do DN e do Gerencial): o nome
+  # e limpo so quando termina com "(codigo)" igual ao codigo da linha (sai o "(codigo)" e o "_" inicial).
+  hierarquia:
+    pasta: "../../bases compartilhadas"
+    padrao: "Hierarquia_*.xlsx"
+    data_regex: '^Hierarquia_(\d{8})\.xlsx$'
+    aba: "Hierarquia Vendas"
+    coluna_cliente: "Cód. cliente"
+    niveis:                         # nivel -> [coluna do codigo, coluna do nome]
+      N1: ["Cód. Head Vendas (N1)", "Nome Head Vendas (N1)"]
+      N2: ["Cód. Gerente Vendas (N2)", "Nome Gerente Vendas (N2)"]
+      N3: ["Cód. Executivo Vendas (N3)", "Nome Executivo Vendas (N3)"]
+      N4: ["Cód. Representante (N4)", "Nome Representante (N4)"]
 
   clientes:                         # D-38 · cadastro de nomes das lojas do Projeto Rota · 1 linha = 1 cliente · mantido pelo Douglas
     arquivo: bases/Estrutura/Clientes_Rota.xlsx

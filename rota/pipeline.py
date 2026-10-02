@@ -84,11 +84,23 @@ def _ingerir(forcar: bool) -> dict:
 
     problemas: list[str] = []
     hier = None
+    arq_h = estrutura.arquivo_hierarquia()
+    if estrutura.arquivo().exists() and arq_h is None:
+        L.abortar(f"hierarquia comum ausente: nenhum {CFG['fontes']['hierarquia']['padrao']} em {CFG['fontes']['hierarquia']['pasta']} (D-49)")
     if estrutura.arquivo().exists():
         from .extract import cache
-        df, x = cache.ler(estrutura.arquivo(), estrutura.ler_arquivo, forcar)
+        dep, xd = cache.ler(estrutura.arquivo(), estrutura.ler_arquivo, forcar)
+        L.contar(estrutura.arquivo().name, xd["posicoes"], 0, **xd)
+        base, xb = cache.ler(arq_h, estrutura.ler_hierarquia, forcar)      # D-49: N1-N4 e nomes da base comum
+        L.log(f"hierarquia vigente: {arq_h.name} ({xb['clientes']:,} clientes)", "ok")
+        df, exc, x = estrutura.montar(dep, base, rota)
         hier = df
-        L.contar(estrutura.arquivo().name, x["posicoes"], 0, **x)
+        if len(exc):
+            qualidade._csv(exc, "rota_x_hierarquia_clientes_com_outro_vendedor.csv")
+            L.log(f"hierarquia: {len(exc)} cliente(s) da rota com outro N4 na base comum (ficam com quem visita; "
+                  f"lista em quality/rota_x_hierarquia_clientes_com_outro_vendedor.csv)", "aviso")
+        for a_ in estrutura.avisos_nome(df, rota):
+            L.log("hierarquia: " + a_, "aviso")
         vis = estrutura.visoes(df)
         L.log(f"hierarquia: {x['posicoes']} posicoes (N4) | {x['n3']} supervisores | {x['n2']} gerentes | {x['n1']} head | "
               f"{x['com_login']} com login | {len(vis)} visoes possiveis", "ok")

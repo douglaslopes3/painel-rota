@@ -171,10 +171,36 @@ H_OK = [(21000, "GER A", 2110, "MARCO MASSON", 101, "FULANO SILVA", "FSILVA"), (
         (21000, "GER A", 2120, "ROBSON DIAS", 118, "[VAGO]", None), (22000, "GER B", 2220, "ADRIANA MIRANDA", 127, "CICRANO LIMA", "CLIMA")]
 
 
+def _base(n4: list[tuple], extra: list[tuple] = ()) -> pd.DataFrame:
+    """Base comum (D-49) com 1 cliente por posicao: cliente = 1000000 + cod N4. `extra` = (cliente, cod N2, cod N3, cod N4, nome N4)."""
+    linhas = [(str(1000000 + c), "20", "HEAD UM", str(g), gn, str(s), sn, str(c), n) for g, gn, s, sn, c, n, _ in n4]
+    nome2 = {str(t[0]): t[1] for t in n4}
+    nome3 = {str(t[2]): t[3] for t in n4}
+    linhas += [(str(cl), "20", "HEAD UM", str(g), nome2.get(str(g), "GER X"), str(s), nome3.get(str(s), "SUP X"), str(c), n)
+               for cl, g, s, c, n in extra]
+    df = pd.DataFrame(linhas, columns=["COD_CLIENTE", "N1_COD", "N1_NOME", "N2_COD", "N2_NOME", "N3_COD", "N3_NOME", "N4_COD", "N4_NOME"])
+    return df.astype("string")
+
+
+def _rota_de(n4: list[tuple], extra: list[tuple] = ()) -> pd.DataFrame:
+    """Rota com 1 cliente por posicao (mesmo cliente da base) + `extra` = (cliente, vendedor da rota)."""
+    cl = [str(1000000 + t[4]) for t in n4] + [str(x) for x, _ in extra]
+    vend = [str(t[4]) for t in n4] + [str(v) for _, v in extra]
+    return pd.DataFrame({"COD_CLIENTE": cl, "COD_VENDEDOR": pd.array(vend, dtype="string")})
+
+
+def _montar(nome: str, n4: list[tuple], base_extra=(), rota_extra=()):
+    dep, _ = estrutura.ler_arquivo(_hier(nome, n4))
+    return estrutura.montar(dep, _base(n4, base_extra), _rota_de(n4, rota_extra))
+
+
 def test_hierarquia_cabecalho_com_quebra_e_visoes_derivadas():
-    df, x = estrutura.ler_arquivo(_hier("h_ok.xlsx", H_OK))
-    assert (x["posicoes"], x["n1"], x["n2"], x["n3"], x["com_login"]) == (4, 1, 2, 3, 2)
-    assert df["N3_ROTULO"].iloc[0] == "2110 - Superv - MARCO MASSON" and df["LOGIN_MERCANET"].iloc[0] == "FSILVA"
+    """D-49: o de-para so traz N4 -> login (cabecalho com quebra); a cadeia e os nomes vem da base comum."""
+    dep, x = estrutura.ler_arquivo(_hier("h_ok.xlsx", H_OK))
+    assert (x["posicoes"], x["com_login"]) == (4, 2) and list(dep.columns[:3]) == ["N4_COD", "LOGIN_MERCANET", "NOME_MERCANET"]
+    df, exc, x = _montar("h_ok.xlsx", H_OK)
+    assert (x["posicoes"], x["n1"], x["n2"], x["n3"], x["com_login"], len(exc)) == (4, 1, 2, 3, 2, 0)
+    assert df["N3_ROTULO"].iloc[0] == "2110 - MARCO MASSON" and df["LOGIN_MERCANET"].iloc[0] == "FSILVA"
     v = estrutura.visoes(df)
     assert v["NIVEL"].value_counts().to_dict() == {"N3": 3, "N2": 2, "N1": 1}
     assert v[(v.NIVEL == "N2") & (v.COD == "21000")]["N3_CODS"].iloc[0] == ["2110", "2120"]      # o gerente vê as duas supervisões
@@ -184,12 +210,39 @@ def test_hierarquia_codigo_n4_repetido_aborta():
     assert aborta(estrutura.ler_arquivo, _hier("h_dup.xlsx", H_OK + [(22000, "GER B", 2220, "ADRIANA MIRANDA", 127, "OUTRO", None)]))
 
 
-def test_hierarquia_supervisor_com_dois_gerentes_aborta():
-    assert aborta(estrutura.ler_arquivo, _hier("h_pai.xlsx", H_OK + [(22000, "GER B", 2110, "MARCO MASSON", 140, "OUTRO", None)]))
+def test_montar_vendedor_com_duas_cadeias_aborta_e_cliente_com_outro_n4_vira_excecao():
+    """D-49 (opcao B): a cadeia sai dos clientes da rota com o MESMO N4 na base; duas cadeias abortam. Cliente da rota que na
+    base esta com outro N4 fica com quem visita e vai para a lista de excecao."""
+    dep, _ = estrutura.ler_arquivo(_hier("h_dois.xlsx", H_OK))
+    base = _base(H_OK, [(2000001, 22000, 2220, 101, "FULANO SILVA")])          # o 101 tambem aparece sob 2220
+    rota = _rota_de(H_OK, [(2000001, "101")])
+    assert aborta(estrutura.montar, dep, base, rota)
+    base = _base(H_OK, [(2000002, 22000, 2220, 127, "CICRANO LIMA")])          # cliente do 101 na rota, do 127 na base
+    df, exc, x = estrutura.montar(dep, base, _rota_de(H_OK, [(2000002, "101")]))
+    assert x["excecoes"] == 1 and exc.iloc[0][["COD_CLIENTE", "N4_ROTA", "N4_BASE"]].tolist() == ["2000002", "101", "127"]
+    assert df.set_index("N4_COD").loc["101", "N3_COD"] == "2110"                 # a cadeia do 101 segue a dos clientes casados
+
+
+def test_nome_limpo_tira_codigo_e_sublinhado_so_quando_o_codigo_bate():
+    cod = pd.Series(["1110", "122", "5000", "30", "9"], dtype="string")
+    nome = pd.Series(["_MURILO CUNHA (1110)", "MARCOS PICIULA (122)", "(5000 ) SUP. SPC (KA/VJ)", "KAN_VAGO", "_X (8)"], dtype="string")
+    assert estrutura._nome_limpo(cod, nome).tolist() == ["MURILO CUNHA", "MARCOS PICIULA", "(5000 ) SUP. SPC (KA/VJ)", "KAN_VAGO", "_X (8)"]
+
+
+def test_nome_diferente_entre_rota_e_base_e_so_aviso():
+    """D-49 (R1): mesmo codigo e nome diferente nao e problema do de-para; vira aviso."""
+    df, _, _ = _montar("h_nome.xlsx", H_OK)
+    rota = pd.DataFrame({"EXECUTIVO": ["FULANO S.", "BELTRANO SOUZA", "[VAGO]", "CICRANO LIMA"], "SUPERVISOR": ["Marco", "Marco", "Robson", "Adriana"],
+                         "COD_VENDEDOR": pd.array(["101", "103", "118", "127"], dtype="string")})
+    prob = estrutura.conferir(df, rota, pd.DataFrame({"LOGIN": ["FSILVA", "CLIMA"]}))
+    assert not any("NOME diferente" in p for p in prob)
+    av = estrutura.avisos_nome(df, rota)
+    assert len(av) == 1 and "FULANO S." in av[0]
 
 
 def test_conferir_por_nome_aponta_vago_repetido_faltantes_e_logins():
-    df, _ = estrutura.ler_arquivo(_hier("h_vago.xlsx", H_OK + [(21000, "GER A", 2120, "ROBSON DIAS", 121, "[VAGO]", None)]))
+    n4 = H_OK + [(21000, "GER A", 2120, "ROBSON DIAS", 121, "[VAGO]", None)]
+    df, _, _ = _montar("h_vago.xlsx", n4)
     rota = pd.DataFrame({"EXECUTIVO": ["FULANO SILVA", "[VAGO]", "NOVATO"], "SUPERVISOR": ["Marco", "Robson", "Adriana"],
                          "COD_VENDEDOR": pd.array([pd.NA] * 3, dtype="string")})
     prob = " | ".join(estrutura.conferir(df, rota, pd.DataFrame({"LOGIN": ["FSILVA", "XYZ"]})))
@@ -198,7 +251,8 @@ def test_conferir_por_nome_aponta_vago_repetido_faltantes_e_logins():
 
 
 def test_conferir_por_codigo_resolve_o_vago_e_acusa_supervisor_trocado():
-    df, _ = estrutura.ler_arquivo(_hier("h_cod.xlsx", H_OK + [(21000, "GER A", 2120, "ROBSON DIAS", 121, "[VAGO]", None)]))
+    n4 = H_OK + [(21000, "GER A", 2120, "ROBSON DIAS", 121, "[VAGO]", None)]
+    df, _, _ = _montar("h_cod.xlsx", n4)
     rota = pd.DataFrame({"EXECUTIVO": ["FULANO SILVA", "BELTRANO SOUZA", "[VAGO]", "[VAGO]", "CICRANO LIMA"],
                          "SUPERVISOR": ["Marco", "Marco", "Robson", "Robson", "Marco"],
                          "COD_VENDEDOR": pd.array(["101", "103", "118", "121", "127"], dtype="string")})
@@ -209,13 +263,14 @@ def test_conferir_por_codigo_resolve_o_vago_e_acusa_supervisor_trocado():
 
 def test_hierarquia_coluna_encerrada_em_e_opcional_e_marca_a_posicao():
     """D-45: sem a coluna, toda posicao e ativa; com data, a posicao e encerrada (sem exigir login nem loja no mes corrente)."""
-    df, x = estrutura.ler_arquivo(_hier("h_semcol.xlsx", H_OK))
+    df, _, x = _montar("h_semcol.xlsx", H_OK)
     assert x["encerradas"] == 0 and df["ATIVA"].all()
     a = TMP / "h_enc.xlsx"
     linhas = [[20, "ATACADO", "HEAD UM", g, "Ger", gn, s, "Superv", sn, c, "Vend", n, "Projeto Rota", lg, None, enc]
               for (g, gn, s, sn, c, n, lg), enc in zip(H_OK, [None, "2026-09-30", None, None])]
     pd.DataFrame(linhas, columns=CAB_H + ["ENCERRADA EM"]).to_excel(a, sheet_name="Hierarquia", index=False)
-    df, x = estrutura.ler_arquivo(a)
+    dep, _ = estrutura.ler_arquivo(a)
+    df, _, x = estrutura.montar(dep, _base(H_OK), _rota_de(H_OK))
     assert x["encerradas"] == 1 and df.set_index("N4_COD")["ATIVA"].to_dict() == {"101": True, "103": False, "118": True, "127": True}
     rota = pd.DataFrame({"ANO_MES": ["2026-09", "2026-10", "2026-10", "2026-10"], "EXECUTIVO": ["BELTRANO SOUZA", "FULANO SILVA", "[VAGO]", "CICRANO LIMA"],
                          "SUPERVISOR": ["Marco", "Marco", "Robson", "Adriana"], "COD_VENDEDOR": pd.array(["103", "101", "118", "127"], dtype="string")})

@@ -1,24 +1,27 @@
 # -*- coding: utf-8 -*-
-"""Leitor do de-para de estrutura (`bases/Estrutura/DePara_Estrutura_Rota.xlsx`, aba `Hierarquia`).
+"""Hierarquia do Projeto Rota (D-49, 02/10/2026).
 
-As bases não ligam o login do Mercanet ao executivo da rota, nem dizem quem vê
-o quê. Essa ligação é mantida pelo Douglas / time de Atacado neste arquivo, no
-MESMO formato N1–N4 da `Hierarquia_Consolidada` do Dashboard Gerencial (D-16):
+Duas fontes, ligadas pelo CÓDIGO do vendedor (N4):
 
-    1 linha = 1 posição de vendedor (N4) do Projeto Rota, com
-    N1 head · N2 gerente · N3 sup./exec. · N4 vend./RCA (código, papel e nome)
-    + LOGIN MERCANET / NOME MERCANET
+- `bases/Estrutura/DePara_Estrutura_Rota.xlsx` (aba `Hierarquia`): 1 linha = 1 posição N4 do Projeto Rota com o
+  LOGIN MERCANET (as bases não ligam o login do Mercanet ao vendedor). Desde a D-49 só o código N4, o login, o nome no
+  Mercanet e o ENCERRADA EM (opcional, D-45) são lidos; as outras colunas continuam na planilha, sem uso.
+- `../../bases compartilhadas/Hierarquia_AAAAMMDD.xlsx` (a de data mais recente no nome): hierarquia oficial comum ao DN
+  e ao Gerencial, 1 linha por cliente, N1 a N4 com código e nome.
 
-Os painéis a gerar (visões) NÃO são digitados: saem da hierarquia — um por head,
-por gerente e por supervisor —, como no Gerencial e no DN. O rótulo de cada
-pessoa é `código - papel - nome`, o mesmo padrão das pastas de publicação.
+A cadeia N1–N3 de cada vendedor sai SÓ das linhas da base em que os clientes da rota estão com esse mesmo N4 (opção B
+das decisões 15/15a): o vendedor que visita é o dono do cliente no painel. Cadeia ambígua aborta; cliente da rota com
+outro N4 na base fica com quem visita e vai para a lista de exceção. Rótulo de cada pessoa = `código - nome`, o mesmo
+das pastas de publicação do DN e do Gerencial.
 
-Nada aqui é inferido: login vazio fica vazio. `conferir()` lista o que não fecha
-com a rota e com os check-ins; quem decide entre aviso e aborto é o pipeline
-(`fontes.estrutura.obrigatorio`).
+Os painéis a gerar (visões) NÃO são digitados: saem da hierarquia — um por head, por gerente e por supervisor.
+Nada aqui é inferido: login vazio fica vazio. `conferir()` lista o que não fecha com a rota e com os check-ins; quem
+decide entre aviso e aborto é o pipeline (`fontes.estrutura.obrigatorio`).
 """
 from __future__ import annotations
 
+import re
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -35,6 +38,70 @@ def arquivo() -> Path:
     return caminho(CFG["fontes"]["estrutura"]["arquivo"])
 
 
+# ------------------------------------------------------------------ hierarquia comum
+def arquivo_hierarquia() -> Path | None:
+    """A Hierarquia_AAAAMMDD.xlsx de data mais recente; arquivo do padrão sem data válida aborta (uma cópia de conflito do
+    OneDrive não vira desempate silencioso). Sem pasta ou sem arquivo: None."""
+    cfg = CFG["fontes"]["hierarquia"]
+    pasta = caminho(cfg["pasta"])
+    if not pasta.is_dir():
+        return None
+    rx = re.compile(cfg["data_regex"])
+    datas: dict[datetime, Path] = {}
+    fora: list[str] = []
+    for a in sorted(pasta.glob(cfg["padrao"])):
+        if a.name.startswith("~$"):
+            continue
+        m = rx.match(a.name)
+        try:
+            d = datetime.strptime(m.group(1), "%Y%m%d") if m else None
+        except ValueError:
+            d = None
+        if d is None:
+            fora.append(a.name)
+        else:
+            datas[d] = a
+    if fora:
+        abortar(f"arquivo(s) fora do padrao {cfg['data_regex']} em {pasta}: {fora}. "
+                "Renomeie para Hierarquia_AAAAMMDD.xlsx ou tire da pasta.")
+    return datas[max(datas)] if datas else None
+
+
+def _nome_limpo(cod: pd.Series, nome: pd.Series) -> pd.Series:
+    """Nome sem o "(código)" do fim e sem o "_" inicial, só quando o número entre parênteses é o código da linha."""
+    partes = nome.str.extract(r"^_?(.+?)\s*\(\s*(\d+)\s*\)$")
+    casa = (partes[0].notna() & (partes[1] == cod)).fillna(False)
+    return nome.where(~casa, partes[0].str.strip())
+
+
+def ler_hierarquia(arq: Path) -> tuple[pd.DataFrame, dict]:
+    """1 linha por cliente: COD_CLIENTE e N1..N4 (código e nome limpo)."""
+    cfg = CFG["fontes"]["hierarquia"]
+    try:
+        df = pd.read_excel(arq, sheet_name=cfg["aba"], engine="calamine", dtype=str)
+    except ValueError:
+        abortar(f"{arq.name}: aba '{cfg['aba']}' nao encontrada.")
+    df.columns = [re.sub(r"\s+", " ", str(c)).strip() for c in df.columns]
+    obrig = [cfg["coluna_cliente"]] + [c for cols in cfg["niveis"].values() for c in cols]
+    faltam = [c for c in obrig if c not in df.columns]
+    if faltam:
+        abortar(f"{arq.name}: coluna(s) ausente(s): {faltam}\n  colunas da planilha: {list(df.columns)}")
+    out = pd.DataFrame({"COD_CLIENTE": digitos(df[cfg["coluna_cliente"]])})
+    for n, (c_cod, c_nome) in cfg["niveis"].items():
+        out[f"{n}_COD"] = digitos(df[c_cod])
+        out[f"{n}_NOME"] = _nome_limpo(out[f"{n}_COD"], texto(df[c_nome]))
+    out = out.dropna(subset=["COD_CLIENTE"])
+    rep = int(out["COD_CLIENTE"].duplicated().sum())
+    if rep:
+        abortar(f"{arq.name}: {rep} cliente(s) repetido(s); o grao esperado e 1 linha por cliente.")
+    for n in NIVEIS:                                           # um nome por código, senão o rótulo seria escolhido
+        conf = out.groupby(f"{n}_COD")[f"{n}_NOME"].nunique()
+        if (conf > 1).any():
+            abortar(f"{arq.name}: codigo(s) de {n} com mais de um nome: {sorted(conf[conf > 1].index)[:10]}.")
+    return out.astype("string").reset_index(drop=True), {"clientes": len(out)}
+
+
+# ------------------------------------------------------------------ de-para de login
 def _mapear(df: pd.DataFrame, colunas: dict[str, list[str]], arq: Path) -> pd.DataFrame:
     """`colunas`: nome no staging -> cabeçalhos aceitos. Os cabeçalhos da
     planilha têm quebra de linha e prefixos ("CRIAR NO BI\\n(N1)\\nHEAD"): vale
@@ -49,11 +116,12 @@ def _mapear(df: pd.DataFrame, colunas: dict[str, list[str]], arq: Path) -> pd.Da
         else:
             ren[achou[0]] = destino
     if faltam:
-        abortar(f"{arq.name}: coluna(s) da hierarquia ausente(s) ou ambigua(s): {faltam}\n  colunas da planilha: {list(norm.values())}")
+        abortar(f"{arq.name}: coluna(s) do de-para ausente(s) ou ambigua(s): {faltam}\n  colunas da planilha: {list(norm.values())}")
     return df[list(ren)].rename(columns=ren)
 
 
 def ler_arquivo(arq: Path) -> tuple[pd.DataFrame, dict]:
+    """De-para N4 -> login do Mercanet: 1 linha por posição."""
     cfg = CFG["fontes"]["estrutura"]
     try:
         bruto = pd.read_excel(arq, sheet_name=cfg["aba"], engine="calamine", dtype=object)
@@ -67,37 +135,60 @@ def ler_arquivo(arq: Path) -> tuple[pd.DataFrame, dict]:
         achou = [c for n, c in norm.items() if any(n == chave_texto(a) or n.endswith(" " + chave_texto(a)) for a in aceitos)]
         df[destino] = bruto[achou[0]].reset_index(drop=True) if len(achou) == 1 else pd.NA
     df["ENCERRADA_EM"] = pd.to_datetime(df["ENCERRADA_EM"], errors="coerce") if "ENCERRADA_EM" in df else pd.NaT
-
-    for c in _CODIGOS:
-        df[c] = digitos(df[c])
-    for n in NIVEIS:
-        df[f"{n}_PAPEL"] = texto(df[f"{n}_PAPEL"], maiuscula=False)
-        df[f"{n}_NOME"] = texto(df[f"{n}_NOME"])
-    df["PROJETO"] = texto(df["PROJETO"], maiuscula=False)
+    df["N4_COD"] = digitos(df["N4_COD"])
     df["LOGIN_MERCANET"] = texto(df["LOGIN_MERCANET"])
     df["NOME_MERCANET"] = texto(df["NOME_MERCANET"], maiuscula=False)
-
-    ruins = df[df[_CODIGOS + ["N3_NOME", "N4_NOME"]].isna().any(axis=1)]
+    ruins = df[df["N4_COD"].isna()]
     if len(ruins):
-        abortar(f"{arq.name}: {len(ruins)} linha(s) da hierarquia sem codigo de N1..N4 ou sem nome de N3/N4 "
+        abortar(f"{arq.name}: {len(ruins)} linha(s) sem codigo de vendedor (N4) "
                 f"(linhas da planilha: {[int(i) + 2 for i in ruins.index[:5]]}).")
     rep = df[df.duplicated("N4_COD", keep=False)]["N4_COD"].unique()
     if len(rep):
         abortar(f"{arq.name}: codigo de vendedor (N4) repetido: {sorted(rep)}. O grao e 1 linha por posicao.")
-    for n in ("N1", "N2", "N3"):                  # o mesmo código não pode ter dois rótulos nem dois pais
-        cols = [f"{n}_PAPEL", f"{n}_NOME"] + ([f"N{int(n[1]) - 1}_COD"] if n != "N1" else [])
-        conf = df.groupby(f"{n}_COD")[cols].nunique().max(axis=1)
-        if (conf > 1).any():
-            abortar(f"{arq.name}: codigo(s) de {n} com mais de um papel/nome/superior: {sorted(conf[conf > 1].index)}.")
-
-    for n in NIVEIS:
-        df[f"{n}_ROTULO"] = df[f"{n}_COD"] + " - " + df[f"{n}_PAPEL"].fillna("") + " - " + df[f"{n}_NOME"]
     df = df.astype({c: "string" for c in df.columns if c != "ENCERRADA_EM"})
-    df["ATIVA"] = df["ENCERRADA_EM"].isna()
-    extra = {"posicoes": len(df), "n1": int(df["N1_COD"].nunique()), "n2": int(df["N2_COD"].nunique()),
-             "n3": int(df["N3_COD"].nunique()), "com_login": int(df["LOGIN_MERCANET"].notna().sum()),
-             "encerradas": int((~df["ATIVA"]).sum())}
-    return df, extra
+    return df, {"posicoes": len(df), "com_login": int(df["LOGIN_MERCANET"].notna().sum()),
+                "encerradas": int(df["ENCERRADA_EM"].notna().sum())}
+
+
+# ------------------------------------------------------------------ montagem
+def montar(depara: pd.DataFrame, base: pd.DataFrame, rota: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+    """Hierarquia por posição (as do de-para) com a cadeia da base comum.
+
+    Cadeia de um N4 = (N1, N2, N3) das linhas da base em que os clientes da rota (qualquer mês) com esse vendedor estão com o
+    MESMO N4. Posição sem cliente da rota casado (nova ou encerrada): a cadeia de todas as linhas da base com esse N4. Mais
+    de uma cadeia, ou nenhuma, aborta. Devolve (hierarquia, excecoes, contagens); exceção = cliente da rota cujo N4 na
+    base difere do vendedor da rota (ou que não está na base): fica com quem visita."""
+    r = rota.dropna(subset=["COD_VENDEDOR"])[["COD_CLIENTE", "COD_VENDEDOR"]].drop_duplicates()
+    j = r.merge(base, on="COD_CLIENTE", how="left")
+    casa = (j["N4_COD"] == j["COD_VENDEDOR"]).fillna(False).astype(bool)
+    exc = j[~casa][["COD_CLIENTE", "COD_VENDEDOR", "N4_COD", "N4_NOME", "N3_COD", "N3_NOME", "N1_COD"]].rename(
+        columns={"COD_VENDEDOR": "N4_ROTA", "N4_COD": "N4_BASE", "N4_NOME": "N4_NOME_BASE", "N3_COD": "N3_BASE",
+                 "N3_NOME": "N3_NOME_BASE", "N1_COD": "N1_BASE"}).reset_index(drop=True)
+    cad = ["N1_COD", "N2_COD", "N3_COD"]
+    pela_rota = j[casa].drop_duplicates(["COD_VENDEDOR"] + cad)
+    linhas, ruins = [], []
+    for n4 in depara["N4_COD"]:
+        ch = pela_rota[pela_rota["COD_VENDEDOR"] == n4][cad]
+        if not len(ch):
+            ch = base[base["N4_COD"] == n4][cad].drop_duplicates()
+        if len(ch) != 1:
+            ruins.append((n4, [tuple(x) for x in ch.itertuples(index=False)]))
+            continue
+        linhas.append({"N4_COD": n4, **ch.iloc[0].to_dict()})
+    if ruins:
+        abortar(f"hierarquia: vendedor(es) sem cadeia unica N1-N3 na base comum (sem linha ou mais de uma): {ruins[:10]}")
+    h = pd.DataFrame(linhas, columns=["N4_COD"] + cad)
+    for n in NIVEIS:
+        nomes = base.drop_duplicates(f"{n}_COD").set_index(f"{n}_COD")[f"{n}_NOME"]
+        h[f"{n}_NOME"] = h[f"{n}_COD"].map(nomes)
+        h[f"{n}_ROTULO"] = h[f"{n}_COD"] + " - " + h[f"{n}_NOME"].fillna("")
+    h = h.merge(depara, on="N4_COD", how="left", validate="1:1")
+    h = h.astype({c: "string" for c in h.columns if c != "ENCERRADA_EM"})
+    h["ATIVA"] = h["ENCERRADA_EM"].isna()
+    extra = {"posicoes": len(h), "n1": int(h["N1_COD"].nunique()), "n2": int(h["N2_COD"].nunique()),
+             "n3": int(h["N3_COD"].nunique()), "com_login": int(h["LOGIN_MERCANET"].notna().sum()),
+             "encerradas": int((~h["ATIVA"]).sum()), "excecoes": len(exc)}
+    return h, exc, extra
 
 
 def visoes(hier: pd.DataFrame) -> pd.DataFrame:
@@ -111,11 +202,27 @@ def visoes(hier: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(linhas)
 
 
+def avisos_nome(hier: pd.DataFrame, rota: pd.DataFrame) -> list[str]:
+    """D-49 (R1): nome do vendedor diferente entre a rota e a base comum, com o mesmo código, é só aviso — a ligação é pelo
+    código. No mês corrente o painel mostra o nome da base; no mês fechado, o `Executivo` da rota daquele mês (D-45)."""
+    if not ("COD_VENDEDOR" in rota.columns and rota["COD_VENDEDOR"].notna().all()):
+        return []
+    nome_rota = rota.drop_duplicates("COD_VENDEDOR").set_index("COD_VENDEDOR")["EXECUTIVO"]
+    nome_hier = hier.set_index("N4_COD")["N4_NOME"]
+    div = sorted(c for c in set(nome_rota.index) & set(nome_hier.index)
+                 if chave_texto(nome_rota[c]) != chave_texto(nome_hier[c]))
+    if not div:
+        return []
+    return [f"vendedor(es) com NOME diferente entre a rota e a base comum (codigo igual, so aviso): "
+            f"{[(c, nome_rota[c], nome_hier[c]) for c in div]}"]
+
+
 def conferir(hier: pd.DataFrame, rota: pd.DataFrame, checkins: pd.DataFrame, mes_corrente: str | None = None) -> list[str]:
     """Problemas entre a hierarquia, a rota e os check-ins. Lista vazia = fechado.
 
     Chave rota ↔ hierarquia: o CÓDIGO do vendedor quando a rota traz a coluna
     (`COD_VENDEDOR`); senão o NOME do executivo — que só serve enquanto for único.
+    D-49: nome diferente com o mesmo código deixou de ser problema (ver `avisos_nome`).
 
     D-45: com `mes_corrente`, a rota pode ter vários meses. Todo código da rota (qualquer mês) precisa de posição; nome, supervisor
     e "posição sem cliente na rota" são conferidos só na rota do mês corrente e só para posições ATIVAS (sem ENCERRADA_EM)."""
@@ -128,12 +235,6 @@ def conferir(hier: pd.DataFrame, rota: pd.DataFrame, checkins: pd.DataFrame, mes
     por_codigo = "COD_VENDEDOR" in todos.columns and todos["COD_VENDEDOR"].notna().all()
     if por_codigo:
         na_rota, no_depara, o_que = set(rota["COD_VENDEDOR"]), set(hier["N4_COD"]), "codigo(s) de vendedor"
-        nome_rota = rota.drop_duplicates("COD_VENDEDOR").set_index("COD_VENDEDOR")["EXECUTIVO"]
-        nome_hier = hier.set_index("N4_COD")["N4_NOME"]
-        div = sorted(c for c in na_rota & no_depara if chave_texto(nome_rota[c]) != chave_texto(nome_hier[c]))
-        if div:
-            p.append(f"vendedor(es) com NOME diferente entre a rota e a hierarquia (codigo igual): "
-                     f"{[(c, nome_rota[c], nome_hier[c]) for c in div]}")
     else:
         na_rota, no_depara, o_que = set(rota["EXECUTIVO"].dropna()), set(hier["N4_NOME"].dropna()), "executivo(s)"
         rep = sorted(hier[hier.duplicated("N4_NOME", keep=False)]["N4_NOME"].unique())

@@ -71,7 +71,8 @@ No painel, o seletor "Mês" mostra o mês em andamento e os últimos 12 meses fe
 
 | Mudou | O que fazer |
 |---|---|
-| Vendedor, supervisor ou login | editar `bases/Estrutura/DePara_Estrutura_Rota.xlsx` (1 linha por posição N4). Problema no de-para ABORTA (D-39) |
+| Login do vendedor | editar `bases/Estrutura/DePara_Estrutura_Rota.xlsx` (1 linha por posição N4). Problema no de-para ABORTA (D-39) |
+| Vendedor, supervisor, gerente (hierarquia) | vem da `Hierarquia_AAAAMMDD.xlsx` mais recente em `../../bases compartilhadas/` (D-49), comum ao DN e ao Gerencial: soltar o arquivo novo lá e rodar |
 | Uma posição ficou vaga | nome `[VAGO]` no de-para e na rota, e o código N4 em `fontes.estrutura.posicoes_sem_login_aceitas` (a 121 foi preenchida em 22/09, D-43) |
 | **Os pesos das semanas do sell-in** (S1 30 · S2 30 · S3 20 · S4 20, a confirmar com o time) | editar `metas_sellin.pesos` no config (somam 100), rodar `python run_rota.py`; o rodapé do painel mostra os pesos em uso. Mês com pesos próprios: `metas_sellin.pesos_por_mes`. Faixas das semanas: `calendario.semanas_do_mes` |
 | Voltar a semana para "segunda até o dia" (D-02) | `calendario.semana: segunda` — o sell-in fica sem meta semanal |
