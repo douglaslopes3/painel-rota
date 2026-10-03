@@ -58,8 +58,6 @@ data/rota/             staging/ (Parquet por arquivo) · curated/ (modelo + mani
 docs/                  Fase 0, inventário, dicionário, modelo, catálogo de métricas, decisões, guia operacional
 tests/                 testes dos leitores, das regras e da publicação, com dados sintéticos
 template/template.html interface do painel, editada à mão (marcador de dados único; sem recurso externo)
-Transcrições/          material de referência, não alterado (fora do git)
-_descartar/            o que saiu de uso (protótipos, reconciliação com o protótipo 2, staging órfão) até ser apagado (fora do git, D-48)
 run_rota.py · requirements.txt
 ```
 

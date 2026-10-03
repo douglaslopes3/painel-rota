@@ -64,7 +64,7 @@ Conferências: faturado dos cards = Σ faturado da lista de lojas; lojas do sell
 
 ## Reconciliação com o protótipo 2 (aceite da Fase 2)
 
-`reconciliar_prototipo2.py` (hoje em `_descartar/ferramentas/`, D-48: só valia com as bases de 16/09) refez a conta do JavaScript do
+`reconciliar_prototipo2.py` (D-48: só valia com as bases de 16/09; excluído na limpeza de 03/10/2026) refez a conta do JavaScript do
 protótipo sobre os dados embutidos nele e comparou com `kpis`, vendedor a vendedor, no mês até 16/09/2026:
 
 | Indicador | Protótipo | Modelo | |

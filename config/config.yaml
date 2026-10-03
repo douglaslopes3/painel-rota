@@ -125,7 +125,7 @@ fontes:
 
   # D-51 (02/10/2026, Douglas): o cadastro de nomes passou a ser a Estrutura de Clientes da pasta compartilhada (a mesma
   # que o Gerencial lê; vale a de data mais recente no nome). Medido antes: as 2.973 lojas da rota com o MESMO nome do
-  # Clientes_Rota.xlsx (aposentado em _descartar/Clientes_Rota_aposentado_D51/); fora da rota, o nome passa a ser o do Gerencial (35 caracteres na origem).
+  # Clientes_Rota.xlsx (aposentado e excluído em 03/10/2026); fora da rota, o nome passa a ser o do Gerencial (35 caracteres na origem).
   clientes:                         # D-38 · cadastro de nomes dos clientes · 1 linha = 1 cliente
     pasta: "../../bases compartilhadas"
     padrao: "Estrutura de Clientes_*.xlsx"

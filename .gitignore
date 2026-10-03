@@ -3,10 +3,6 @@ Bases/
 bases/
 data/
 
-# Material de referência (transcrições de reunião) e pasta de descarte (D-48: o que saiu de uso fica aqui até ser apagado)
-Transcrições/
-_descartar/
-
 docs/DePara_*.xlsx
 
 # Credenciais
